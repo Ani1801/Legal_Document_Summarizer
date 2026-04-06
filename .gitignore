@@ -1,0 +1,15 @@
+# Environments
+.env
+venv/
+env/
+__pycache__/
+*.pyc
+
+# Frontend
+node_modules/
+dist/
+.DS_Store
+
+# IDEs
+.vscode/
+.idea/
