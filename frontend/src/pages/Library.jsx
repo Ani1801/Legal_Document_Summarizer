@@ -1,13 +1,29 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BookOpen, FolderOpen, FileText, Search, Filter } from 'lucide-react';
 
 const Library = () => {
-  const documents = [
-    { id: 1, name: 'Q3 Financial Report.pdf', type: 'PDF', size: '2.4 MB', date: '2026-04-01' },
-    { id: 2, name: 'Employee Handbook.docx', type: 'DOCX', size: '1.1 MB', date: '2026-03-28' },
-    { id: 3, name: 'Project Alpha Requirements.pdf', type: 'PDF', size: '4.7 MB', date: '2026-03-15' },
-    { id: 4, name: 'Vendor Contract Q2.pdf', type: 'PDF', size: '3.2 MB', date: '2026-03-10' },
-  ];
+  const [documents, setDocuments] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDocuments = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('http://localhost:8000/api/library', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const result = await response.json();
+          setDocuments(result);
+        }
+      } catch (error) {
+        console.error('Failed to fetch library documents:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDocuments();
+  }, []);
 
   return (
     <div className="p-8">
@@ -68,11 +84,17 @@ const Library = () => {
           </table>
         </div>
         
-        {documents.length === 0 && (
+        {!loading && documents.length === 0 && (
           <div className="text-center py-12 text-slate-500 dark:text-slate-400">
             <BookOpen size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
             <p className="text-lg font-medium text-slate-700 dark:text-slate-300">No documents found</p>
             <p className="text-sm">Upload some documents to see them in your library.</p>
+          </div>
+        )}
+        
+        {loading && (
+          <div className="text-center py-12 text-slate-500 dark:text-slate-400">
+            <p className="text-lg font-medium text-slate-700 dark:text-slate-300">Loading documents...</p>
           </div>
         )}
       </div>

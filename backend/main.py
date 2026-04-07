@@ -1,20 +1,62 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import auth, dashboard
+from app.api import auth, dashboard, library
+import os
+import tempfile
+from app.services.ai.processor import PDFProcessor
 
 app = FastAPI(title="Auditor AI Backend")
 
+# 1. Expanded Origins 
+# Some browsers resolve 'localhost' to '127.0.0.1', so we include both.
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000", # Common fallback
+]
+
+# 2. CORS Middleware (Must be defined before routers)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"], # Helps some frontend libraries see custom headers
 )
 
+# 3. Include Routers
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(dashboard.router, prefix="/api", tags=["dashboard"])
+app.include_router(library.router, prefix="/api", tags=["library"])
 
 @app.get("/")
 def read_root():
     return {"message": "Welcome to Auditor AI Backend API"}
+
+@app.post("/api/test/process")
+async def test_process(file: UploadFile = File(...)):
+    # Standard temp directory logic
+    temp_path = os.path.join(tempfile.gettempdir(), file.filename)
+    
+    # Save uploaded file temporarily
+    content = await file.read()
+    with open(temp_path, "wb") as f:
+        f.write(content)
+        
+    try:
+        processor = PDFProcessor()
+        chunks = processor.load_and_split_pdf(temp_path)
+        
+        return {
+            "success": True,
+            "total_chunks": len(chunks),
+            "first_chunk_text": chunks.page_content if chunks else None,
+            "first_chunk_metadata": chunks.metadata if chunks else None
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+    finally:
+        # Cleanup: Ensure the file is deleted even if processing fails
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
