@@ -17,7 +17,8 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import PromptTemplate
 
 # Fallback chain
-GEMINI_MODELS = ["gemini-2.0-flash", "gemini-1.5-flash"]
+# Fallback chain: try each model in order
+GEMINI_MODELS = ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"]
 MAX_RETRIES = 2
 RETRY_DELAY = 2
 

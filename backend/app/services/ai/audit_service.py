@@ -10,7 +10,7 @@ import json
 import asyncio
 
 # Fallback chain: try each model in order
-GEMINI_MODELS = ["gemini-2.0-flash", "gemini-1.5-flash"]
+GEMINI_MODELS = ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"]
 MAX_RETRIES = 2
 RETRY_DELAY = 2  # seconds
 
@@ -91,7 +91,7 @@ Respond ONLY in valid JSON format matching the structure below:
                 except Exception as e:
                     last_error = e
                     error_str = str(e).lower()
-                    is_retryable = any(code in error_str for code in ["503", "429", "unavailable", "overloaded", "quota"])
+                    is_retryable = any(code in error_str for code in ["503", "429", "unavailable", "overloaded", "quota", "404", "not_found"])
 
                     if is_retryable:
                         print(f"[AuditService] {model_name} attempt {attempt + 1} failed: {e}")
