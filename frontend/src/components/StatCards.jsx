@@ -26,6 +26,21 @@ const StatCards = () => {
     fetchStats();
   }, []);
 
+  const getSeverityColor = (score) => {
+    if (score > 80) return 'emerald';
+    if (score >= 50) return 'amber';
+    return 'red';
+  };
+
+  const getCriticalRiskColor = (count) => {
+    if (count === 0) return 'emerald';
+    if (count <= 2) return 'amber';
+    return 'red';
+  };
+
+  const complianceScore = data['Average Compliance'] || 0;
+  const criticalCount = data['Critical Risks'] || 0;
+
   const stats = [
     {
       title: 'Total Audits',
@@ -36,11 +51,11 @@ const StatCards = () => {
     },
     {
       title: 'Critical Risks',
-      value: data['Critical Risks']?.toString() || '0',
-      change: data['Critical Risks'] > 0 ? 'Requires Attention' : 'All clear',
+      value: criticalCount.toString(),
+      change: criticalCount > 0 ? 'Requires Attention' : 'All clear',
       icon: AlertTriangle,
-      color: 'red',
-      indicator: data['Critical Risks'] > 0
+      color: getCriticalRiskColor(criticalCount),
+      indicator: criticalCount > 0
     },
     {
       title: 'Clauses Analyzed',
@@ -51,10 +66,10 @@ const StatCards = () => {
     },
     {
       title: 'Avg. Compliance Score',
-      value: `${data['Average Compliance'] || 0}%`,
+      value: `${complianceScore}%`,
       change: 'Lifetime average',
       icon: Target,
-      color: 'emerald'
+      color: getSeverityColor(complianceScore)
     }
   ];
 

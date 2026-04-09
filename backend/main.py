@@ -1,9 +1,14 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import auth, dashboard, library
+from app.api import auth, dashboard, library, audits
 import os
 import tempfile
+import uuid
 from app.services.ai.processor import PDFProcessor
+from app.services.ai.vector_store import VectorStoreService
 
 app = FastAPI(title="Auditor AI Backend")
 
@@ -29,6 +34,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(dashboard.router, prefix="/api", tags=["dashboard"])
 app.include_router(library.router, prefix="/api", tags=["library"])
+app.include_router(audits.router, prefix="/api", tags=["audits"])
 
 @app.get("/")
 def read_root():
@@ -48,11 +54,13 @@ async def test_process(file: UploadFile = File(...)):
         processor = PDFProcessor()
         chunks = processor.load_and_split_pdf(temp_path)
         
+        vector_store = VectorStoreService()
+        vector_store.upsert_chunks(chunks, "test_user_id", str(uuid.uuid4()))
+        
         return {
             "success": True,
             "total_chunks": len(chunks),
-            "first_chunk_text": chunks.page_content if chunks else None,
-            "first_chunk_metadata": chunks.metadata if chunks else None
+            "message": "Successfully Embedded"
         }
     except Exception as e:
         return {"success": False, "error": str(e)}

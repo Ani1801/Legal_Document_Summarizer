@@ -32,7 +32,7 @@ const RecentAudits = () => {
                 id: a._id,
                 title: a.file_name,
                 timestamp: timestamp,
-                level: level,
+                score: a.risk_score !== undefined ? a.risk_score : 100,
                 description: a.summary || 'No summary provided',
                 tags: a.risks?.map(r => `#${r.title?.split(' ')[0] || 'Risk'}`).slice(0, 3) || []
              };
@@ -46,16 +46,14 @@ const RecentAudits = () => {
     fetchAudits();
   }, []);
 
-   const getRiskBadge = (level) => {
-    switch (level) {
-      case 'Critical':
-        return <span className="flex items-center gap-1.5 px-2.5 py-1 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-xs font-semibold rounded-md border border-red-100 dark:border-red-500/20"><AlertCircle size={14}/> Critical Risk</span>;
-      case 'Moderate':
-        return <span className="flex items-center gap-1.5 px-2.5 py-1 bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 text-xs font-semibold rounded-md border border-yellow-100 dark:border-yellow-500/20"><AlertTriangle size={14}/> Moderate</span>;
-      case 'Low':
-      default:
-        return <span className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold rounded-md border border-emerald-100 dark:border-emerald-500/20"><CheckCircle size={14}/> Low Risk</span>;
+  const getSeverityBadge = (score) => {
+    if (score > 80) {
+      return <span className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold rounded-md border border-emerald-100 dark:border-emerald-500/20"><CheckCircle size={14}/> Safe</span>;
     }
+    if (score >= 50) {
+      return <span className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-semibold rounded-md border border-amber-100 dark:border-amber-500/20"><AlertTriangle size={14}/> Moderate</span>;
+    }
+    return <span className="flex items-center gap-1.5 px-2.5 py-1 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-xs font-semibold rounded-md border border-red-100 dark:border-red-500/20"><AlertCircle size={14}/> Critical</span>;
   };
 
   return (
@@ -90,7 +88,7 @@ const RecentAudits = () => {
                   </span>
                 ))}
               </div>
-              {getRiskBadge(audit.level)}
+              {getSeverityBadge(audit.score)}
             </div>
           </div>
         ))}

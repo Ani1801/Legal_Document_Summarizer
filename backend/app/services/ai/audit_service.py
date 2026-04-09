@@ -1,4 +1,7 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()
+
 from typing import List
 from langchain_core.documents import Document
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -7,43 +10,41 @@ import json
 
 class AuditService:
     def __init__(self):
-        # Use Google_API_KEY or GOOGLE_API_KEY from environment variables
-        google_api_key = os.getenv("Google_API_KEY") or os.getenv("GOOGLE_API_KEY")
         self.llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-flash",
-            google_api_key=google_api_key,
+            model="gemini-2.5-flash",
+            google_api_key=os.getenv("GOOGLE_API_KEY"),
             temperature=0.2,
         )
         
         self.prompt = PromptTemplate(
             input_variables=["context"],
-            template="""Analyze these legal document chunks for risks, missing clauses, and a general summary. Return the response as a structured JSON object with categories: Summary, Critical Risks, and Suggestions.
+            template="""Analyze these legal document chunks for risks, missing clauses, and a general summary. Return the response as a structured JSON object with categories: Summary, Risks, and Missing Clauses.
 
 Extracted Text:
 {context}
 
 Respond ONLY in valid JSON format matching the structure below:
 {{
-    "Summary": "A general summary of the contract.",
-    "Critical Risks": [
+    "Summary": "A 3-sentence overview of the document.",
+    "Risks": [
         {{
             "title": "Risk Title",
-            "description": "Why this is a risk based exactly on the provided text."
+            "description": "A potentially harmful clause"
         }}
     ],
-    "Suggestions": [
-        "Suggestion on missing clauses or improvements"
+    "Missing Clauses": [
+        "What is standard in legal docs but missing here?"
     ]
 }}
 """
         )
 
-    async def generate_audit_report(self, context_chunks: List[Document]) -> dict:
+    async def generate_analysis(self, chunks: List[Document]) -> dict:
         """
         Analyzes chunks using Gemini and returns a parsed JSON dictionary.
         """
         # Combine chunk content
-        context_text = "\n\n".join([chunk.page_content for chunk in context_chunks])
+        context_text = "\n\n".join([chunk.page_content for chunk in chunks])
         
         formatted_prompt = self.prompt.format(context=context_text)
         
@@ -62,6 +63,6 @@ Respond ONLY in valid JSON format matching the structure below:
             # Fallback handling
             return {
                 "Summary": "Failed to parse AI response into JSON.",
-                "Critical Risks": [],
-                "Suggestions": []
+                "Risks": [],
+                "Missing Clauses": []
             }

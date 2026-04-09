@@ -1,4 +1,7 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()
+
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_pinecone import PineconeVectorStore
 from typing import List
@@ -9,6 +12,8 @@ class VectorStoreService:
         # HuggingFace Embeddings (100% Free)
         self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
         self.index_name = os.getenv("PINECONE_INDEX_NAME", "legal-auditor")
+        self.pinecone_api_key = os.getenv("PINECONE_API_KEY")
+        self.pinecone_host = os.getenv("PINECONE_HOST")
         
     def upsert_chunks(self, chunks: List[Document], user_id: str, audit_id: str):
         """
