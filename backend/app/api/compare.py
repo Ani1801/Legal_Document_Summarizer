@@ -1,0 +1,102 @@
+"""
+Compare API Route — POST /api/compare
+
+Multi-document comparison endpoint. Retrieves chunks from two audited
+documents via Pinecone, sends them to Gemini for structured comparison,
+and returns difference summary, risk shift score, and clause-level analysis.
+"""
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from app.api.dashboard import get_current_user, get_db
+from app.models.compare import CompareRequest, CompareResponse, ClauseMatch
+from app.services.ai.query_service import QueryService
+from app.services.ai.compare_service import CompareService
+
+router = APIRouter()
+
+query_service = QueryService()
+compare_service = CompareService()
+
+
+@router.post("/compare", response_model=CompareResponse)
+async def compare_audits(
+    request: CompareRequest,
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db)
+):
+    """
+    Compare two audited documents side-by-side.
+
+    1. Validates both audits belong to the current user
+    2. Retrieves top-10 chunks from each document via Pinecone
+    3. Sends both sets to Gemini for structured comparison
+    4. Returns difference summary, risk shift score, and clause-level analysis
+    """
+    user_id = str(current_user["_id"])
+    audits_collection = db["audits"]
+
+    # Validate audit A
+    audit_a = await audits_collection.find_one({"_id": request.audit_id_a, "user_id": user_id})
+    if not audit_a:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Audit A not found or you don't have access to it."
+        )
+
+    # Validate audit B
+    audit_b = await audits_collection.find_one({"_id": request.audit_id_b, "user_id": user_id})
+    if not audit_b:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Audit B not found or you don't have access to it."
+        )
+
+    # Retrieve chunks from both documents
+    try:
+        # Use a broad query to get representative chunks from each doc
+        broad_query = "key terms liability indemnity termination confidentiality payment obligations"
+
+        chunks_a = query_service.retrieve_relevant_chunks(
+            question=broad_query, user_id=user_id,
+            audit_id=request.audit_id_a, top_k=10
+        )
+        chunks_b = query_service.retrieve_relevant_chunks(
+            question=broad_query, user_id=user_id,
+            audit_id=request.audit_id_b, top_k=10
+        )
+    except Exception as e:
+        print(f"[Compare] Vector retrieval error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve document context for comparison."
+        )
+
+    # Run Gemini comparison
+    try:
+        result = await compare_service.compare_documents(
+            doc_a_chunks=chunks_a,
+            doc_b_chunks=chunks_b,
+            doc_a_name=audit_a.get("file_name", "Document A"),
+            doc_b_name=audit_b.get("file_name", "Document B")
+        )
+    except Exception as e:
+        print(f"[Compare] Gemini comparison error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate comparison. Please try again."
+        )
+
+    # Build response
+    clauses = [
+        ClauseMatch(**c) for c in result.get("clauses", [])
+    ]
+
+    return CompareResponse(
+        difference_summary=result.get("difference_summary", "No summary available."),
+        risk_shift_score=result.get("risk_shift_score", 0),
+        clauses=clauses,
+        missing_in_a=result.get("missing_in_a", []),
+        missing_in_b=result.get("missing_in_b", []),
+        doc_a_name=audit_a.get("file_name", "Document A"),
+        doc_b_name=audit_b.get("file_name", "Document B"),
+    )

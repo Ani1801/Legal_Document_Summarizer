@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends
 from typing import List
 from ..models.library import LibraryDocument
 from .dashboard import get_current_user, get_db
-from bson import ObjectId
 
 router = APIRouter()
 
@@ -11,12 +10,7 @@ async def get_library_documents(current_user: dict = Depends(get_current_user), 
     audits_collection = db["audits"]
     
     user_id_str = str(current_user["_id"])
-    
-    try:
-        user_id_obj = ObjectId(user_id_str)
-        query = {"$or": [{"user_id": user_id_str}, {"user_id": user_id_obj}]}
-    except:
-        query = {"user_id": user_id_str}
+    query = {"user_id": user_id_str}
 
     cursor = audits_collection.find(query).sort("created_at", -1)
     audits = await cursor.to_list(length=None)

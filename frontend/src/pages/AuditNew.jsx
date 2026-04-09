@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UploadCloud, FileText, AlertTriangle, ShieldAlert, Loader2, Lightbulb, Download } from 'lucide-react';
+import { UploadCloud, FileText, AlertTriangle, ShieldAlert, Loader2, Lightbulb, Download, MessageSquare, FileDown } from 'lucide-react';
+import ChatPanel from '../components/ChatPanel';
 
 /** Returns Tailwind colour classes based on a 0-100 risk score. */
 const getSeverityColor = (score) => {
@@ -14,6 +15,7 @@ const AuditNew = () => {
   const [activeTab, setActiveTab] = useState('summary'); // 'summary' | 'risks' | 'suggestions'
   const [auditResult, setAuditResult] = useState(null);
   const [error, setError] = useState(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const fileInputRef = useRef(null);
 
   const handleDragOver = (e) => {
@@ -176,6 +178,57 @@ const AuditNew = () => {
                     Download PDF
                   </a>
                   <button className="text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors" onClick={() => setStage('upload')}>Audit Another</button>
+                  <button
+                    onClick={() => setIsChatOpen(true)}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 bg-indigo-50 dark:bg-indigo-500/10 px-2.5 py-1 rounded border border-indigo-100 dark:border-indigo-500/20 transition-colors"
+                  >
+                    <MessageSquare size={13} />
+                    Chat with Doc
+                  </button>
+                  <a
+                    href={`http://localhost:8000/api/export/${auditResult?.id}?format=pdf`}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      const token = localStorage.getItem('token');
+                      fetch(`http://localhost:8000/api/export/${auditResult?.id}?format=pdf`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                      }).then(r => r.blob()).then(blob => {
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${auditResult?.file_name?.replace('.pdf', '')}_audit_report.pdf`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      });
+                    }}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-100 dark:border-emerald-500/20 transition-colors cursor-pointer"
+                  >
+                    <FileDown size={13} />
+                    Export PDF
+                  </a>
+                  <a
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      const token = localStorage.getItem('token');
+                      fetch(`http://localhost:8000/api/export/${auditResult?.id}?format=docx`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                      }).then(r => r.blob()).then(blob => {
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${auditResult?.file_name?.replace('.pdf', '')}_audit_report.docx`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      });
+                    }}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 bg-violet-50 dark:bg-violet-500/10 px-2.5 py-1 rounded border border-violet-100 dark:border-violet-500/20 transition-colors cursor-pointer"
+                  >
+                    <FileDown size={13} />
+                    Export DOCX
+                  </a>
                   <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded border border-emerald-100 dark:border-emerald-500/20">Scanned ✔</span>
                 </div>
               </div>
@@ -311,6 +364,14 @@ const AuditNew = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Chat Drawer */}
+      <ChatPanel
+        auditId={auditResult?.id}
+        fileName={auditResult?.file_name}
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+      />
     </div>
   );
 };

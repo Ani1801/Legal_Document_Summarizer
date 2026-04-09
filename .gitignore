@@ -1,15 +1,39 @@
-# Environments
+# Environments & Secrets
 .env
+.env.*
+!.env.example
+
+# Python
 venv/
 env/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
 
-# Frontend
+# Backend specific
+backend/uploads/
+uploads/
+
+# Node / Frontend
 node_modules/
 dist/
+build/
+npm-debug.log
+yarn-error.log
+
+# OS / System
 .DS_Store
+Thumbs.db
 
 # IDEs
 .vscode/
 .idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp

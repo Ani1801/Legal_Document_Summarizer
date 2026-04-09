@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, FileSearch, Library, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, FileSearch, Library, Settings, LogOut, GitCompareArrows, Shield } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -10,6 +10,8 @@ const Sidebar = () => {
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'New Summary', path: '/audit', icon: FileSearch },
+    { name: 'Compare', path: '/compare', icon: GitCompareArrows },
+    { name: 'Compliance', path: '/compliance', icon: Shield },
     { name: 'Library', path: '/library', icon: Library },
     { name: 'Settings', path: '/settings', icon: Settings },
   ];

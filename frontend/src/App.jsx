@@ -8,6 +8,8 @@ import Auth from './pages/Auth';
 import Library from './pages/Library';
 import Settings from './pages/Settings';
 import Landing from './pages/Landing';
+import Compare from './pages/Compare';
+import Compliance from './pages/Compliance';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 
@@ -41,6 +43,8 @@ function App() {
             <Route path="/auth" element={<Auth />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/audit" element={<ProtectedRoute><AuditNew /></ProtectedRoute>} />
+            <Route path="/compare" element={<ProtectedRoute><Compare /></ProtectedRoute>} />
+            <Route path="/compliance" element={<ProtectedRoute><Compliance /></ProtectedRoute>} />
             <Route path="/library" element={<ProtectedRoute><Library /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
