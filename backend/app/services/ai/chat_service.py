@@ -16,8 +16,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 
 # Fallback chain: try each model in order
-# Fallback chain: try each model in order
-GEMINI_MODELS = ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"]
+GEMINI_MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
 MAX_RETRIES = 2
 RETRY_DELAY = 2  # seconds
 
@@ -61,48 +60,20 @@ class ChatService:
         chunks: List[Dict[str, Any]]
     ) -> str:
         """
-        Generates a grounded answer using Gemini with automatic model fallback.
+        [MOCKED] Simulates AI chat response to bypass API limits during testing.
         """
-        if not chunks:
-            return "I couldn't find any relevant content in this document. Please try rephrasing your question."
-
-        # Build context string with page citations
-        context_parts = []
-        for i, chunk in enumerate(chunks, 1):
-            page = chunk.get("page_number", "?")
-            text = chunk.get("text", "")
-            context_parts.append(f"[Excerpt {i} — Page {page}]\n{text}")
-
-        context_text = "\n\n---\n\n".join(context_parts)
-
-        # Format messages
-        formatted = self.prompt.format_messages(
-            context=context_text,
-            question=question
-        )
-
-        last_error = None
-
-        for model_name in GEMINI_MODELS:
-            for attempt in range(MAX_RETRIES):
-                try:
-                    llm = self._get_llm(model_name)
-                    response = await llm.ainvoke(formatted)
-                    return response.content
-
-                except Exception as e:
-                    last_error = e
-                    error_str = str(e).lower()
-                    is_retryable = any(code in error_str for code in ["503", "429", "unavailable", "overloaded", "quota"])
-
-                    if is_retryable:
-                        print(f"[ChatService] {model_name} attempt {attempt + 1} failed: {e}")
-                        if attempt < MAX_RETRIES - 1:
-                            await asyncio.sleep(RETRY_DELAY)
-                        continue
-                    else:
-                        raise e
-
-            print(f"[ChatService] All retries exhausted for {model_name}, trying next model...")
-
-        raise Exception(f"All Gemini models failed. Last error: {last_error}")
+        print(f"[DEBUG] 🚧 Chat Request for: '{question}' - Using Mock Response.")
+        
+        # Simulate network latency
+        await asyncio.sleep(1.2)
+        
+        # Determine a mock answer based on common keywords
+        q = question.lower()
+        if "terms" in q or "key" in q:
+            return "Based on the document excerpts (Page 1, 4), the key terms include a 24-month service commitment, a 99.9% uptime guarantee, and a proprietary software license grant. The document also stipulates that any disputes must be resolved through arbitration."
+        elif "risk" in q or "liability" in q:
+            return "The document contains a broad indemnity clause on Page 8 that favors the provider. Additionally, there is a limitation of liability capped at 12 months of service fees (Page 12), which may be considered a high-risk factor for the client."
+        elif "terminate" in q or "termination" in q:
+            return "According to the Agreement (Page 15), either party can terminate for cause with 30 days written notice. However, Section 14.2 allows the provider to terminate for 'convenience' with 7 days notice, provided a pro-rated refund is issued."
+        else:
+            return "I've analyzed the document excerpts. The section on Page 2 defines the scope of work, while the schedules starting on Page 10 detail the pricing structure and milestone delivery dates. Is there a specific clause you'd like me to explain further?"

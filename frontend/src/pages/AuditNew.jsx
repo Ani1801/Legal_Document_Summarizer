@@ -12,6 +12,7 @@ const getSeverityColor = (score) => {
 
 const AuditNew = () => {
   const [stage, setStage] = useState('upload'); // 'upload' | 'loading' | 'analysis'
+  const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState('summary'); // 'summary' | 'risks' | 'suggestions'
   const [auditResult, setAuditResult] = useState(null);
   const [error, setError] = useState(null);
@@ -36,7 +37,7 @@ const AuditNew = () => {
   };
 
   const processFile = async (file) => {
-    if (!file) return;
+    if (!file || isProcessing) return;
 
     if (file.type !== 'application/pdf') {
       setError('Only PDF files are currently supported.');
@@ -45,6 +46,7 @@ const AuditNew = () => {
 
     setError(null);
     setStage('loading');
+    setIsProcessing(true);
 
     const formData = new FormData();
     formData.append('file', file);
@@ -70,6 +72,8 @@ const AuditNew = () => {
     } catch (err) {
       setError(err.message);
       setStage('upload');
+    } finally {
+      setIsProcessing(false);
     }
   };
 

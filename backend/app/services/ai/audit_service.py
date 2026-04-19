@@ -10,7 +10,7 @@ import json
 import asyncio
 
 # Fallback chain: try each model in order
-GEMINI_MODELS = ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"]
+GEMINI_MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
 MAX_RETRIES = 2
 RETRY_DELAY = 2  # seconds
 
@@ -51,58 +51,18 @@ Respond ONLY in valid JSON format matching the structure below:
 
     async def generate_analysis(self, chunks: List[Document]) -> dict:
         """
-        Analyzes chunks using Gemini with automatic model fallback.
-        Tries each model in GEMINI_MODELS on 503/429 errors.
+        [MOCKED] Simulates AI analysis to bypass API limits during testing.
         """
-        context_text = "\n\n".join([chunk.page_content for chunk in chunks])
-        formatted_prompt = self.prompt.format(context=context_text)
-
-        last_error = None
-
-        for model_name in GEMINI_MODELS:
-            for attempt in range(MAX_RETRIES):
-                try:
-                    llm = self._get_llm(model_name)
-                    response = await llm.ainvoke(formatted_prompt)
-                    content = response.content
-
-                    # Clean up Markdown JSON blocks if model includes them
-                    if content.startswith("```json"):
-                        content = content.replace("```json", "", 1)
-                        content = content.replace("```", "")
-                    # Also handle when model adds conversational text before JSON
-                    if not content.strip().startswith("{"):
-                        # Try to extract JSON from the response
-                        start = content.find("{")
-                        end = content.rfind("}") + 1
-                        if start != -1 and end > start:
-                            content = content[start:end]
-
-                    try:
-                        return json.loads(content.strip())
-                    except json.JSONDecodeError:
-                        print(f"Failed to parse JSON from {model_name}. Raw content:", content[:200])
-                        return {
-                            "Summary": "Failed to parse AI response into JSON.",
-                            "Risks": [],
-                            "Missing Clauses": []
-                        }
-
-                except Exception as e:
-                    last_error = e
-                    error_str = str(e).lower()
-                    is_retryable = any(code in error_str for code in ["503", "429", "unavailable", "overloaded", "quota", "404", "not_found"])
-
-                    if is_retryable:
-                        print(f"[AuditService] {model_name} attempt {attempt + 1} failed: {e}")
-                        if attempt < MAX_RETRIES - 1:
-                            await asyncio.sleep(RETRY_DELAY)
-                        continue
-                    else:
-                        # Non-retryable error: propagate immediately
-                        raise e
-
-            print(f"[AuditService] All retries exhausted for {model_name}, trying next model...")
-
-        # All models exhausted
-        raise Exception(f"All Gemini models failed. Last error: {last_error}")
+        print("[DEBUG] 🚧 API Limit Reached - Using Mock Data for Testing.")
+        
+        # Simulate network latency
+        await asyncio.sleep(1.5)
+        
+        return {
+            "Summary": "MOCK ANALYSIS: This document is a Service Level Agreement (SLA) between the provider and the client. It defines uptime guarantees and support response times.",
+            "Risks": [
+                {"title": "Arbitration Clause", "description": "Section 8.1 forces mandatory arbitration in a specific jurisdiction, limiting legal recourse."},
+                {"title": "Termination for Convenience", "description": "The provider can terminate with 7 days notice, which is high-risk for business continuity."}
+            ],
+            "Missing Clauses": ["Data Breach Notification", "Force Majeure Clause"]
+        }

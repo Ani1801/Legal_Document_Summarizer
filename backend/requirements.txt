@@ -15,7 +15,7 @@ langchain-huggingface
 langchain-pinecone
 langchain-google-genai
 sentence-transformers
-pinecone-client
+pinecone
 google-generativeai
 reportlab
 python-docx
