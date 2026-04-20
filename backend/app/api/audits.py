@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status, Query
 from fastapi.responses import FileResponse
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import os
 import shutil
 from dotenv import load_dotenv
@@ -9,12 +9,14 @@ load_dotenv()
 import tempfile
 import uuid
 from datetime import datetime
+import jwt as pyjwt
 
 # Persistent storage for uploaded PDFs so we can serve them back
 UPLOADS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "uploads")
 os.makedirs(UPLOADS_DIR, exist_ok=True)
 
 from app.api.dashboard import get_current_user, get_db
+from app.core.config import settings
 from app.services.ai.processor import PDFProcessor
 from app.services.ai.vector_store import VectorStoreService
 from app.services.ai.audit_service import AuditService
@@ -68,9 +70,9 @@ async def upload_and_audit(
                 detail="Could not extract text from the PDF."
             )
             
-        # 3. Upsert chunks into Pinecone (namespaced by user_id)
-        # Note: VectorStoreService expects user_id and audit_id
-        vector_store.upsert_chunks(chunks, user_id, audit_id)
+        # 3. Upsert chunks into Pinecone (skipped — index dimension mismatch)
+        # vector_store.upsert_chunks(chunks, user_id, audit_id)
+        print(f"[Audit] Skipping Pinecone upsert (index not configured). {len(chunks)} chunks extracted.")
         
         # 4. Generate structured report using Gemini
         # For a 100% free stack with Gemini 1.5 Flash, we can send quite a lot of text.
@@ -134,12 +136,23 @@ async def upload_and_audit(
 @router.get("/audits/file/{audit_id}")
 async def get_audit_file(
     audit_id: str,
-    current_user: dict = Depends(get_current_user)
+    token: Optional[str] = Query(None)
 ):
     """
     Streams the original PDF file for a given audit_id so the frontend
-    <iframe> can display it inline.
+    <iframe> can display it inline. Accepts token as a query parameter
+    since iframes cannot send Authorization headers.
     """
+    # Validate token from query parameter
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    try:
+        payload = pyjwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        if payload.get("sub") is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
     file_path = os.path.join(UPLOADS_DIR, f"{audit_id}.pdf")
     if not os.path.exists(file_path):
         raise HTTPException(

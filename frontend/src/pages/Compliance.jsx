@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Loader2, AlertTriangle, FileText, CheckCircle, ShieldAlert, ChevronRight, Zap } from 'lucide-react';
 
-const API_URL = 'http://localhost:8000/api';
+const API_URL = 'http://127.0.0.1:8000/api';
 
 const Compliance = () => {
   const [documents, setDocuments] = useState([]);

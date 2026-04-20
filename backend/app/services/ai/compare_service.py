@@ -18,7 +18,7 @@ from langchain_core.prompts import PromptTemplate
 
 # Fallback chain
 # Fallback chain: try each model in order
-GEMINI_MODELS = ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"]
+GEMINI_MODELS = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-2.5-flash"]
 MAX_RETRIES = 2
 RETRY_DELAY = 2
 

@@ -1,17 +1,17 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, X, Send, Loader2, FileText, ChevronDown, Sparkles, AlertCircle } from 'lucide-react';
 
-const API_URL = 'http://localhost:8000/api';
+const API_URL = 'http://127.0.0.1:8000/api';
 
 /**
- * ChatPanel — Slide-out drawer for RAG-based document chat.
+ * ChatPanel â€” Slide-out drawer for RAG-based document chat.
  * 
  * Props:
- *   auditId  — The audit_id of the document to chat with
- *   fileName — The original PDF file name (for display)
- *   isOpen   — Whether the drawer is visible
- *   onClose  — Callback to close the drawer
+ *   auditId  â€” The audit_id of the document to chat with
+ *   fileName â€” The original PDF file name (for display)
+ *   isOpen   â€” Whether the drawer is visible
+ *   onClose  â€” Callback to close the drawer
  */
 const ChatPanel = ({ auditId, fileName, isOpen, onClose }) => {
   const [messages, setMessages] = useState([]);
@@ -94,7 +94,7 @@ const ChatPanel = ({ auditId, fileName, isOpen, onClose }) => {
       setCooldown(4); // Enforce cooldown after successful request
     } catch (err) {
       setError(err.message);
-      // Remove the user message if we got an error (optional — keep for transparency)
+      // Remove the user message if we got an error (optional â€” keep for transparency)
     } finally {
       setIsLoading(false);
     }
@@ -136,7 +136,7 @@ const ChatPanel = ({ auditId, fileName, isOpen, onClose }) => {
             transition={{ type: 'spring', damping: 28, stiffness: 300 }}
             className="fixed top-0 right-0 h-full w-full sm:w-[480px] bg-white dark:bg-slate-900 shadow-2xl z-50 flex flex-col border-l border-slate-200 dark:border-slate-800"
           >
-            {/* ── Header ─────────────────────────────────── */}
+            {/* â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-800/80">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
@@ -158,7 +158,7 @@ const ChatPanel = ({ auditId, fileName, isOpen, onClose }) => {
               </button>
             </div>
 
-            {/* ── Messages Area ──────────────────────────── */}
+            {/* â”€â”€ Messages Area â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {messages.length === 0 && !isLoading && (
                 <div className="flex flex-col items-center justify-center h-full text-center px-6">
@@ -167,7 +167,7 @@ const ChatPanel = ({ auditId, fileName, isOpen, onClose }) => {
                   </div>
                   <h4 className="font-bold text-slate-800 dark:text-white mb-1.5">Ask anything about your document</h4>
                   <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
-                    I'll answer based only on the contents of your uploaded document — no hallucinations.
+                    I'll answer based only on the contents of your uploaded document â€” no hallucinations.
                   </p>
                   <div className="w-full space-y-2">
                     <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Suggested Questions</p>
@@ -260,7 +260,7 @@ const ChatPanel = ({ auditId, fileName, isOpen, onClose }) => {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* ── Input Area ─────────────────────────────── */}
+            {/* â”€â”€ Input Area â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
             <div className="border-t border-slate-200 dark:border-slate-800 p-4 bg-white dark:bg-slate-900">
               {cooldown > 0 && !isLoading && (
                 <div className="flex items-center justify-center gap-1.5 mb-2 text-[11px] text-slate-400 dark:text-slate-500">

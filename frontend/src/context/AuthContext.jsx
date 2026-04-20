@@ -1,4 +1,4 @@
-/* eslint-disable react-refresh/only-export-components */
+﻿/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState } from 'react';
 
 const AuthContext = createContext();
@@ -12,7 +12,7 @@ export const AuthProvider = ({ children }) => {
   });
   const [isLoading, setIsLoading] = useState(false);
 
-  const API_URL = 'http://localhost:8000/api/auth';
+  const API_URL = 'http://127.0.0.1:8000/api/auth';
 
   const login = async (email, password) => {
     setIsLoading(true);

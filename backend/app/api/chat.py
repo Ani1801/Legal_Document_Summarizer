@@ -65,16 +65,24 @@ async def chat_with_document(
         sources = [SourceChunk(**s) for s in cached.get("sources", [])]
         return ChatResponse(answer=cached["answer"], sources=sources)
 
-    # ── Retrieve relevant chunks from Pinecone ──
+    # ── Build context from the actual audit data stored in MongoDB ──
     try:
-        chunks = query_service.retrieve_relevant_chunks(
-            question=request.question,
-            user_id=user_id,
-            audit_id=request.audit_id,
-            top_k=5
-        )
+        summary = audit.get("summary", "No summary available.")
+        risks = audit.get("risks", [])
+        file_name = audit.get("file_name", "document.pdf")
+
+        # Build context chunks from the real audit analysis
+        chunks = [
+            {"text": f"Document Summary: {summary}", "page_number": 1, "file_name": file_name},
+        ]
+        for i, risk in enumerate(risks):
+            chunks.append({
+                "text": f"Risk: {risk.get('title', 'Unknown')} — {risk.get('description', 'No description')}",
+                "page_number": i + 2,
+                "file_name": file_name,
+            })
     except Exception as e:
-        print(f"[Chat] Vector retrieval error: {e}")
+        print(f"[Chat] Context build error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve document context. Please try again."

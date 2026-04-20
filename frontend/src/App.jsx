@@ -9,7 +9,6 @@ import Library from './pages/Library';
 import Settings from './pages/Settings';
 import Landing from './pages/Landing';
 import Compare from './pages/Compare';
-import Compliance from './pages/Compliance';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 
@@ -28,7 +27,6 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/audit" element={<AuditNew />} />
               <Route path="/compare" element={<Compare />} />
-              <Route path="/compliance" element={<Compliance />} />
               <Route path="/library" element={<Library />} />
               <Route path="/settings" element={<Settings />} />
             </Route>
@@ -57,7 +55,5 @@ const ProtectedRoute = () => {
     </div>
   );
 };
-
-export default App;
 
 export default App;

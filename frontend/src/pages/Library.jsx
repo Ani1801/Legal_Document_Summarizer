@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { BookOpen, FolderOpen, FileText, Search, Filter, MessageSquare, Loader2 } from 'lucide-react';
 import ChatPanel from '../components/ChatPanel';
 
@@ -12,7 +12,7 @@ const Library = () => {
     const fetchDocuments = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:8000/api/library', {
+        const response = await fetch('http://127.0.0.1:8000/api/library', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (response.ok) {
@@ -128,7 +128,7 @@ const Library = () => {
         )}
       </div>
 
-      {/* Chat Drawer — opens when user clicks "Chat" on any document */}
+      {/* Chat Drawer â€” opens when user clicks "Chat" on any document */}
       <ChatPanel
         auditId={chatDoc?.id}
         fileName={chatDoc?.name}

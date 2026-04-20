@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+﻿import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UploadCloud, FileText, AlertTriangle, ShieldAlert, Loader2, Lightbulb, Download, MessageSquare, FileDown } from 'lucide-react';
 import ChatPanel from '../components/ChatPanel';
@@ -53,7 +53,7 @@ const AuditNew = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8000/api/audits/upload', {
+      const response = await fetch('http://127.0.0.1:8000/api/audits/upload', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -172,7 +172,7 @@ const AuditNew = () => {
                 <div className="flex items-center gap-3">
                   {/* Download PDF button */}
                   <a
-                    href={`http://localhost:8000/api/audits/file/${auditResult?.id}?token=${localStorage.getItem('token')}`}
+                    href={`http://127.0.0.1:8000/api/audits/file/${auditResult?.id}?token=${localStorage.getItem('token')}`}
                     download={auditResult?.file_name}
                     target="_blank"
                     rel="noreferrer"
@@ -190,13 +190,13 @@ const AuditNew = () => {
                     Chat with Doc
                   </button>
                   <a
-                    href={`http://localhost:8000/api/export/${auditResult?.id}?format=pdf`}
+                    href={`http://127.0.0.1:8000/api/export/${auditResult?.id}?format=pdf`}
                     target="_blank"
                     rel="noreferrer"
                     onClick={(e) => {
                       e.preventDefault();
                       const token = localStorage.getItem('token');
-                      fetch(`http://localhost:8000/api/export/${auditResult?.id}?format=pdf`, {
+                      fetch(`http://127.0.0.1:8000/api/export/${auditResult?.id}?format=pdf`, {
                         headers: { 'Authorization': `Bearer ${token}` }
                       }).then(r => r.blob()).then(blob => {
                         const url = URL.createObjectURL(blob);
@@ -217,7 +217,7 @@ const AuditNew = () => {
                     onClick={(e) => {
                       e.preventDefault();
                       const token = localStorage.getItem('token');
-                      fetch(`http://localhost:8000/api/export/${auditResult?.id}?format=docx`, {
+                      fetch(`http://127.0.0.1:8000/api/export/${auditResult?.id}?format=docx`, {
                         headers: { 'Authorization': `Bearer ${token}` }
                       }).then(r => r.blob()).then(blob => {
                         const url = URL.createObjectURL(blob);
@@ -233,13 +233,13 @@ const AuditNew = () => {
                     <FileDown size={13} />
                     Export DOCX
                   </a>
-                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded border border-emerald-100 dark:border-emerald-500/20">Scanned ✔</span>
+                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded border border-emerald-100 dark:border-emerald-500/20">Scanned âœ”</span>
                 </div>
               </div>
               {/* PDF iframe previewer */}
               <div className="flex-1 overflow-hidden">
                 <iframe
-                  src={`http://localhost:8000/api/audits/file/${auditResult?.id}?token=${localStorage.getItem('token')}`}
+                  src={`http://127.0.0.1:8000/api/audits/file/${auditResult?.id}?token=${localStorage.getItem('token')}`}
                   width="100%"
                   height="600px"
                   title="PDF Preview"
@@ -250,7 +250,7 @@ const AuditNew = () => {
                     <FileText size={40} className="opacity-50" />
                     <p className="text-sm font-medium">Your browser cannot display the PDF inline.</p>
                     <a
-                      href={`http://localhost:8000/api/audits/file/${auditResult?.id}?token=${localStorage.getItem('token')}`}
+                      href={`http://127.0.0.1:8000/api/audits/file/${auditResult?.id}?token=${localStorage.getItem('token')}`}
                       className="text-primary-blue underline text-sm"
                       target="_blank" rel="noreferrer"
                     >Open in new tab</a>

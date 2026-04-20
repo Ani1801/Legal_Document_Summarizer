@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { FileText, AlertTriangle, Scale, Target } from 'lucide-react';
 
 const StatCards = () => {
@@ -12,7 +12,7 @@ const StatCards = () => {
     const fetchStats = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:8000/api/dashboard/stats', {
+        const response = await fetch('http://127.0.0.1:8000/api/dashboard/stats', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (response.ok) {

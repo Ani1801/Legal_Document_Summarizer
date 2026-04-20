@@ -10,7 +10,7 @@ import json
 import asyncio
 
 # Fallback chain: try each model in order
-GEMINI_MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+GEMINI_MODELS = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-2.5-flash"]
 MAX_RETRIES = 2
 RETRY_DELAY = 2  # seconds
 
@@ -51,18 +51,53 @@ Respond ONLY in valid JSON format matching the structure below:
 
     async def generate_analysis(self, chunks: List[Document]) -> dict:
         """
-        [MOCKED] Simulates AI analysis to bypass API limits during testing.
+        Analyzes document chunks using Gemini and returns structured JSON.
+        Falls back through multiple models on API errors.
         """
-        print("[DEBUG] 🚧 API Limit Reached - Using Mock Data for Testing.")
-        
-        # Simulate network latency
-        await asyncio.sleep(1.5)
-        
-        return {
-            "Summary": "MOCK ANALYSIS: This document is a Service Level Agreement (SLA) between the provider and the client. It defines uptime guarantees and support response times.",
-            "Risks": [
-                {"title": "Arbitration Clause", "description": "Section 8.1 forces mandatory arbitration in a specific jurisdiction, limiting legal recourse."},
-                {"title": "Termination for Convenience", "description": "The provider can terminate with 7 days notice, which is high-risk for business continuity."}
-            ],
-            "Missing Clauses": ["Data Breach Notification", "Force Majeure Clause"]
-        }
+        context = "\n\n".join([c.page_content for c in chunks])
+        formatted_prompt = self.prompt.format(context=context)
+
+        last_error = None
+
+        for model_name in GEMINI_MODELS:
+            for attempt in range(MAX_RETRIES):
+                try:
+                    llm = self._get_llm(model_name)
+                    response = await llm.ainvoke(formatted_prompt)
+                    content = response.content
+
+                    # Clean markdown code blocks
+                    if "```json" in content:
+                        content = content.replace("```json", "", 1)
+                        content = content.replace("```", "")
+                    if not content.strip().startswith("{"):
+                        start = content.find("{")
+                        end = content.rfind("}") + 1
+                        if start != -1 and end > start:
+                            content = content[start:end]
+
+                    try:
+                        return json.loads(content.strip())
+                    except json.JSONDecodeError:
+                        print(f"[AuditService] Failed to parse JSON. Raw:", content[:200])
+                        return {
+                            "Summary": "AI analysis completed but response format was unexpected.",
+                            "Risks": [],
+                            "Missing Clauses": []
+                        }
+
+                except Exception as e:
+                    last_error = e
+                    error_str = str(e).lower()
+                    is_retryable = any(code in error_str for code in ["503", "429", "unavailable", "overloaded", "quota"])
+                    if is_retryable:
+                        print(f"[AuditService] {model_name} attempt {attempt + 1} failed: {e}")
+                        if attempt < MAX_RETRIES - 1:
+                            await asyncio.sleep(RETRY_DELAY)
+                        continue
+                    else:
+                        raise e
+
+            print(f"[AuditService] All retries exhausted for {model_name}")
+
+        raise Exception(f"All Gemini models failed for analysis. Last error: {last_error}")

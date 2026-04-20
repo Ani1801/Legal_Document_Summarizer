@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GitCompareArrows, Loader2, AlertTriangle, ArrowRight, ArrowLeft, FileText, Shield, ChevronDown, Minus, Plus } from 'lucide-react';
 
-const API_URL = 'http://localhost:8000/api';
+const API_URL = 'http://127.0.0.1:8000/api';
 
 const Compare = () => {
   const [documents, setDocuments] = useState([]);
@@ -177,11 +177,11 @@ const Compare = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="bg-blue-50/50 dark:bg-blue-500/5 rounded-lg p-3 border border-blue-100 dark:border-blue-500/20">
                           <p className="text-[10px] font-bold text-blue-500 uppercase mb-1">Doc A</p>
-                          <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{clause.doc_a_text || '—'}</p>
+                          <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{clause.doc_a_text || 'â€”'}</p>
                         </div>
                         <div className="bg-indigo-50/50 dark:bg-indigo-500/5 rounded-lg p-3 border border-indigo-100 dark:border-indigo-500/20">
                           <p className="text-[10px] font-bold text-indigo-500 uppercase mb-1">Doc B</p>
-                          <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{clause.doc_b_text || '—'}</p>
+                          <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{clause.doc_b_text || 'â€”'}</p>
                         </div>
                       </div>
                       {clause.risk_note && (
@@ -205,7 +205,7 @@ const Compare = () => {
                   <ul className="space-y-2">
                     {result.missing_in_a.map((item, idx) => (
                       <li key={idx} className="text-sm text-slate-600 dark:text-slate-400 flex items-start gap-2">
-                        <span className="text-red-400 mt-1">•</span> {item}
+                        <span className="text-red-400 mt-1">â€¢</span> {item}
                       </li>
                     ))}
                   </ul>
@@ -219,7 +219,7 @@ const Compare = () => {
                   <ul className="space-y-2">
                     {result.missing_in_b.map((item, idx) => (
                       <li key={idx} className="text-sm text-slate-600 dark:text-slate-400 flex items-start gap-2">
-                        <span className="text-blue-400 mt-1">•</span> {item}
+                        <span className="text-blue-400 mt-1">â€¢</span> {item}
                       </li>
                     ))}
                   </ul>

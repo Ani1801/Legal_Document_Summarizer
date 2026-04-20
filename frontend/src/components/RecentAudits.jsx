@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Clock, CheckCircle, AlertCircle, AlertTriangle } from 'lucide-react';
 
 const RecentAudits = () => {
@@ -8,7 +8,7 @@ const RecentAudits = () => {
     const fetchAudits = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:8000/api/audits/recent', {
+        const response = await fetch('http://127.0.0.1:8000/api/audits/recent', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (response.ok) {

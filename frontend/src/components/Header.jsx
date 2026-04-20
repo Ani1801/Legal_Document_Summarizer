@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { Search, Bell, Mail, X, AlertTriangle, CheckCircle, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const API_URL = 'http://localhost:8000/api';
+const API_URL = 'http://127.0.0.1:8000/api';
 
 const Header = () => {
   const { user } = useAuth();
@@ -82,7 +82,7 @@ const Header = () => {
         <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400">
           <button 
             className="hover:text-slate-800 dark:hover:text-slate-200 transition-colors relative group"
-            title="Messages — Coming soon"
+            title="Messages â€” Coming soon"
           >
             <Mail size={20} />
             <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border border-white dark:border-slate-900"></span>
