@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, X, Send, Loader2, FileText, ChevronDown, Sparkles, AlertCircle } from 'lucide-react';
+import api from '../services/api';
 
-const API_URL = 'http://localhost:8000/api';
 
 /**
  * ChatPanel — Slide-out drawer for RAG-based document chat.
@@ -55,33 +55,10 @@ const ChatPanel = ({ auditId, fileName, isOpen, onClose }) => {
     setIsLoading(true);
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          audit_id: auditId,
-          question: question
-        })
+      const data = await api.post('/api/chat', {
+        audit_id: auditId,
+        question: question
       });
-
-      if (response.status === 429) {
-        const data = await response.json();
-        setError(data.detail || 'Rate limited. Please wait a moment.');
-        setCooldown(4);
-        setIsLoading(false);
-        return;
-      }
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.detail || 'Failed to get response');
-      }
-
-      const data = await response.json();
       
       // Add AI message
       const aiMessage = {
@@ -93,8 +70,11 @@ const ChatPanel = ({ auditId, fileName, isOpen, onClose }) => {
       setMessages(prev => [...prev, aiMessage]);
       setCooldown(4); // Enforce cooldown after successful request
     } catch (err) {
+      // Check if it's a rate limit error (429 shows up in the message)
+      if (err.message && (err.message.includes('wait') || err.message.includes('429'))) {
+        setCooldown(4);
+      }
       setError(err.message);
-      // Remove the user message if we got an error (optional — keep for transparency)
     } finally {
       setIsLoading(false);
     }

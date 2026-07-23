@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Bell, Mail, X, AlertTriangle, CheckCircle, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
 
-const API_URL = 'http://localhost:8000/api';
 
 const Header = () => {
   const { user } = useAuth();
@@ -29,14 +29,8 @@ const Header = () => {
   const fetchNotifications = async () => {
     setNotifLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API_URL}/notifications`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setNotifications(data);
-      }
+      const data = await api.get('/api/notifications');
+      setNotifications(data);
     } catch (err) {
       console.error('Failed to fetch notifications:', err);
     } finally {

@@ -84,17 +84,25 @@ async def upload_and_audit(
         summary = report.get("Summary", "No summary generated.")
         risks_data = report.get("Risks", [])
         
-        # Format risks for our model
+        # Format risks for our model — use AI-provided severity
+        VALID_SEVERITIES = {"High", "Medium", "Low"}
         formatted_risks = []
         for r in risks_data:
+            severity = r.get("severity", "Medium").strip().capitalize()
+            if severity not in VALID_SEVERITIES:
+                severity = "Medium"
             formatted_risks.append({
                 "title": r.get("title", "Unknown Risk"),
-                "severity": "High", 
+                "severity": severity,
                 "description": r.get("description", "No description provided.")
             })
             
-        # Calculate a simple mock risk score (100 - 15 per risk, min 0)
-        risk_score = max(0, 100 - (len(formatted_risks) * 15))
+        # Calculate weighted risk score: High=-20, Medium=-10, Low=-5
+        score_deduction = sum(
+            20 if r["severity"] == "High" else 10 if r["severity"] == "Medium" else 5
+            for r in formatted_risks
+        )
+        risk_score = max(0, 100 - score_deduction)
         
         audit_data = {
             "_id": audit_id,
@@ -134,8 +142,24 @@ async def upload_and_audit(
 @router.get("/audits/file/{audit_id}")
 async def get_audit_file(
     audit_id: str,
-    current_user: dict = Depends(get_current_user)
+    token: str = None,
+    db = Depends(get_db)
 ):
+    """
+    Streams the original PDF file. Supports token in query param for iframes.
+    """
+    # Simple manual token validation for the iframe
+    if not token:
+         raise HTTPException(status_code=401, detail="Token required for document access")
+    
+    try:
+        from app.core.config import settings
+        import jwt
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        email = payload.get("sub")
+        if not email: raise Exception()
+    except:
+        raise HTTPException(status_code=401, detail="Invalid session token")
     """
     Streams the original PDF file for a given audit_id so the frontend
     <iframe> can display it inline.

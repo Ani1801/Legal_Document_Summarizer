@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UploadCloud, FileText, AlertTriangle, ShieldAlert, Loader2, Lightbulb, Download, MessageSquare, FileDown } from 'lucide-react';
 import ChatPanel from '../components/ChatPanel';
+import api from '../services/api';
 
 /** Returns Tailwind colour classes based on a 0-100 risk score. */
 const getSeverityColor = (score) => {
@@ -52,21 +53,7 @@ const AuditNew = () => {
     formData.append('file', file);
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8000/api/audits/upload', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
-
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.detail || 'Upload failed');
-      }
-
-      const data = await response.json();
+      const data = await api.post('/api/audits/upload', formData, { isFormData: true });
       setAuditResult(data);
       setStage('analysis');
     } catch (err) {
@@ -169,77 +156,36 @@ const AuditNew = () => {
                   <FileText size={18} className="text-primary-blue dark:text-blue-400" />
                   <span className="font-semibold text-sm text-slate-800 dark:text-slate-200">{auditResult?.file_name}</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  {/* Download PDF button */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setIsChatOpen(true)}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 bg-indigo-50 dark:bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-100 dark:border-indigo-500/20 transition-colors"
+                  >
+                    <MessageSquare size={13} />
+                    Chat
+                  </button>
                   <a
-                    href={`http://localhost:8000/api/audits/file/${auditResult?.id}?token=${localStorage.getItem('token')}`}
+                    href={api.url(`/api/audits/file/${auditResult?.id}?token=${localStorage.getItem('token')}`)}
                     download={auditResult?.file_name}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center gap-1.5 text-xs font-semibold text-primary-blue dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 bg-blue-50 dark:bg-blue-500/10 px-2.5 py-1 rounded border border-blue-100 dark:border-blue-500/20 transition-colors"
+                    className="flex items-center gap-1.5 text-xs font-semibold text-primary-blue dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 bg-blue-50 dark:bg-blue-500/10 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-500/20 transition-colors"
                   >
                     <Download size={13} />
-                    Download PDF
+                    Download
                   </a>
-                  <button className="text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors" onClick={() => setStage('upload')}>Audit Another</button>
-                  <button
-                    onClick={() => setIsChatOpen(true)}
-                    className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 bg-indigo-50 dark:bg-indigo-500/10 px-2.5 py-1 rounded border border-indigo-100 dark:border-indigo-500/20 transition-colors"
+                  <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 mx-1"></div>
+                  <button 
+                    className="text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 px-2 py-1.5 transition-colors"
+                    onClick={() => setStage('upload')}
                   >
-                    <MessageSquare size={13} />
-                    Chat with Doc
+                    New Audit
                   </button>
-                  <a
-                    href={`http://localhost:8000/api/export/${auditResult?.id}?format=pdf`}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      const token = localStorage.getItem('token');
-                      fetch(`http://localhost:8000/api/export/${auditResult?.id}?format=pdf`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                      }).then(r => r.blob()).then(blob => {
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `${auditResult?.file_name?.replace('.pdf', '')}_audit_report.pdf`;
-                        a.click();
-                        URL.revokeObjectURL(url);
-                      });
-                    }}
-                    className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-100 dark:border-emerald-500/20 transition-colors cursor-pointer"
-                  >
-                    <FileDown size={13} />
-                    Export PDF
-                  </a>
-                  <a
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      const token = localStorage.getItem('token');
-                      fetch(`http://localhost:8000/api/export/${auditResult?.id}?format=docx`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                      }).then(r => r.blob()).then(blob => {
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `${auditResult?.file_name?.replace('.pdf', '')}_audit_report.docx`;
-                        a.click();
-                        URL.revokeObjectURL(url);
-                      });
-                    }}
-                    className="flex items-center gap-1.5 text-xs font-semibold text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 bg-violet-50 dark:bg-violet-500/10 px-2.5 py-1 rounded border border-violet-100 dark:border-violet-500/20 transition-colors cursor-pointer"
-                  >
-                    <FileDown size={13} />
-                    Export DOCX
-                  </a>
-                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded border border-emerald-100 dark:border-emerald-500/20">Scanned ✔</span>
                 </div>
               </div>
-              {/* PDF iframe previewer */}
               <div className="flex-1 overflow-hidden">
                 <iframe
-                  src={`http://localhost:8000/api/audits/file/${auditResult?.id}?token=${localStorage.getItem('token')}`}
+                  src={api.url(`/api/audits/file/${auditResult?.id}?token=${localStorage.getItem('token')}`)}
                   width="100%"
                   height="600px"
                   title="PDF Preview"
@@ -250,7 +196,7 @@ const AuditNew = () => {
                     <FileText size={40} className="opacity-50" />
                     <p className="text-sm font-medium">Your browser cannot display the PDF inline.</p>
                     <a
-                      href={`http://localhost:8000/api/audits/file/${auditResult?.id}?token=${localStorage.getItem('token')}`}
+                      href={api.url(`/api/audits/file/${auditResult?.id}?token=${localStorage.getItem('token')}`)}
                       className="text-primary-blue underline text-sm"
                       target="_blank" rel="noreferrer"
                     >Open in new tab</a>

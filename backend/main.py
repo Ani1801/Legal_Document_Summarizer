@@ -12,12 +12,15 @@ from app.services.ai.vector_store import VectorStoreService
 
 app = FastAPI(title="Auditor AI Backend")
 
-# 1. Expanded Origins 
+# 1. Expanded Origins — localhost for dev + production URL from env
+CORS_ORIGIN = os.getenv("CORS_ORIGIN", "")  # Set this on Render to your frontend URL
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:3000",
 ]
+if CORS_ORIGIN:
+    origins.append(CORS_ORIGIN)
 
 # 2. CORS Middleware
 app.add_middleware(

@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Loader2, AlertTriangle, FileText, CheckCircle, ShieldAlert, ChevronRight, Zap } from 'lucide-react';
-
-const API_URL = 'http://localhost:8000/api';
+import api from '../services/api';
 
 const Compliance = () => {
   const [documents, setDocuments] = useState([]);
@@ -16,11 +15,8 @@ const Compliance = () => {
   useEffect(() => {
     const fetchDocs = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${API_URL}/library`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) setDocuments(await res.json());
+        const docs = await api.get('/api/library');
+        setDocuments(docs);
       } catch (err) { console.error(err); }
       finally { setDocsLoading(false); }
     };
@@ -39,17 +35,8 @@ const Compliance = () => {
     setError(null);
     setResult(null);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API_URL}/compliance/check`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ audit_id: selectedDoc, regulations })
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || 'Compliance check failed');
-      }
-      setResult(await res.json());
+      const data = await api.post('/api/compliance/check', { audit_id: selectedDoc, regulations });
+      setResult(data);
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }
   };

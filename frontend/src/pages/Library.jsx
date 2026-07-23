@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BookOpen, FolderOpen, FileText, Search, Filter, MessageSquare, Loader2 } from 'lucide-react';
 import ChatPanel from '../components/ChatPanel';
+import api from '../services/api';
 
 const Library = () => {
   const [documents, setDocuments] = useState([]);
@@ -11,14 +12,8 @@ const Library = () => {
   useEffect(() => {
     const fetchDocuments = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:8000/api/library', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (response.ok) {
-          const result = await response.json();
-          setDocuments(result);
-        }
+        const result = await api.get('/api/library');
+        setDocuments(result);
       } catch (error) {
         console.error('Failed to fetch library documents:', error);
       } finally {

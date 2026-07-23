@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, CheckCircle, AlertCircle, AlertTriangle } from 'lucide-react';
+import api from '../services/api';
 
 const RecentAudits = () => {
   const [audits, setAudits] = useState([]);
@@ -7,38 +8,31 @@ const RecentAudits = () => {
   useEffect(() => {
     const fetchAudits = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:8000/api/audits/recent', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (response.ok) {
-          const result = await response.json();
-          
-          const formatted = result.map(a => {
-             let level = 'Low';
-             const hasHigh = a.risks?.some(r => r.severity === 'High');
-             const hasMed = a.risks?.some(r => r.severity === 'Medium' || r.severity === 'Moderate');
-             if (hasHigh) level = 'Critical';
-             else if (hasMed) level = 'Moderate';
-             
-             const date = new Date(a.created_at);
-             const diffMins = Math.round((new Date() - date) / 60000);
-             let timestamp = 'Just now';
-             if (diffMins > 1440) timestamp = `${Math.round(diffMins/1440)} days ago`;
-             else if (diffMins > 60) timestamp = `${Math.round(diffMins/60)} hours ago`;
-             else if (diffMins > 0) timestamp = `${diffMins} mins ago`;
+        const result = await api.get('/api/audits/recent');
+        const formatted = result.map(a => {
+           let level = 'Low';
+           const hasHigh = a.risks?.some(r => r.severity === 'High');
+           const hasMed = a.risks?.some(r => r.severity === 'Medium' || r.severity === 'Moderate');
+           if (hasHigh) level = 'Critical';
+           else if (hasMed) level = 'Moderate';
+           
+           const date = new Date(a.created_at);
+           const diffMins = Math.round((new Date() - date) / 60000);
+           let timestamp = 'Just now';
+           if (diffMins > 1440) timestamp = `${Math.round(diffMins/1440)} days ago`;
+           else if (diffMins > 60) timestamp = `${Math.round(diffMins/60)} hours ago`;
+           else if (diffMins > 0) timestamp = `${diffMins} mins ago`;
 
-             return {
-                id: a._id,
-                title: a.file_name,
-                timestamp: timestamp,
-                score: a.risk_score !== undefined ? a.risk_score : 100,
-                description: a.summary || 'No summary provided',
-                tags: a.risks?.map(r => `#${r.title?.split(' ')[0] || 'Risk'}`).slice(0, 3) || []
-             };
-          });
-          setAudits(formatted);
-        }
+           return {
+              id: a._id,
+              title: a.file_name,
+              timestamp: timestamp,
+              score: a.risk_score !== undefined ? a.risk_score : 100,
+              description: a.summary || 'No summary provided',
+              tags: a.risks?.map(r => `#${r.title?.split(' ')[0] || 'Risk'}`).slice(0, 3) || []
+           };
+        });
+        setAudits(formatted);
       } catch (error) {
         console.error('Failed to fetch recent audits:', error);
       }

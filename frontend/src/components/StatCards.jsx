@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, AlertTriangle, Scale, Target } from 'lucide-react';
+import api from '../services/api';
 
 const StatCards = () => {
   const [data, setData] = useState({
@@ -11,14 +12,8 @@ const StatCards = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:8000/api/dashboard/stats', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (response.ok) {
-          const result = await response.json();
-          setData(result);
-        }
+        const result = await api.get('/api/dashboard/stats');
+        setData(result);
       } catch (error) {
         console.error('Failed to fetch stats:', error);
       }

@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState } from 'react';
+import api from '../services/api';
 
 const AuthContext = createContext();
 
@@ -12,55 +13,31 @@ export const AuthProvider = ({ children }) => {
   });
   const [isLoading, setIsLoading] = useState(false);
 
-  const API_URL = 'http://localhost:8000/api/auth';
-
   const login = async (email, password) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_URL}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      
-      const data = await response.json();
-      setIsLoading(false);
-      
-      if (!response.ok) {
-        throw new Error(data.detail || 'Login failed');
-      }
-      
+      const data = await api.post('/api/auth/login', { email, password });
       localStorage.setItem('token', data.access_token);
       localStorage.setItem('user', JSON.stringify(data.user));
       setUser(data.user);
     } catch (error) {
-      setIsLoading(false);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const signup = async (name, email, password, role) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_URL}/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, role })
-      });
-      
-      const data = await response.json();
-      setIsLoading(false);
-      
-      if (!response.ok) {
-        throw new Error(data.detail || 'Signup failed');
-      }
-      
+      const data = await api.post('/api/auth/signup', { name, email, password, role });
       localStorage.setItem('token', data.access_token);
       localStorage.setItem('user', JSON.stringify(data.user));
       setUser(data.user);
     } catch (error) {
-      setIsLoading(false);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 

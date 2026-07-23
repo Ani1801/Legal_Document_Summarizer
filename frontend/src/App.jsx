@@ -59,5 +59,3 @@ const ProtectedRoute = () => {
 };
 
 export default App;
-
-export default App;

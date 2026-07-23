@@ -9,10 +9,23 @@ router = APIRouter()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
+# ── Singleton MongoDB client (created once, reused across all requests) ──
+_mongo_client: AsyncIOMotorClient = None
+
+def get_mongo_client() -> AsyncIOMotorClient:
+    global _mongo_client
+    if _mongo_client is None:
+        _mongo_client = AsyncIOMotorClient(
+            settings.MONGO_URI,
+            serverSelectionTimeoutMS=5000,
+            maxPoolSize=10,
+            minPoolSize=1,
+        )
+    return _mongo_client
+
 def get_db():
-    client = AsyncIOMotorClient(settings.MONGO_URI, serverSelectionTimeoutMS=5000)
-    db = client[settings.DATABASE_NAME]
-    return db
+    client = get_mongo_client()
+    return client[settings.DATABASE_NAME]
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db=Depends(get_db)):
     credentials_exception = HTTPException(

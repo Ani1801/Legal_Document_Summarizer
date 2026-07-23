@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GitCompareArrows, Loader2, AlertTriangle, ArrowRight, ArrowLeft, FileText, Shield, ChevronDown, Minus, Plus } from 'lucide-react';
-
-const API_URL = 'http://localhost:8000/api';
+import api from '../services/api';
 
 const Compare = () => {
   const [documents, setDocuments] = useState([]);
@@ -16,11 +15,8 @@ const Compare = () => {
   useEffect(() => {
     const fetchDocs = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${API_URL}/library`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) setDocuments(await res.json());
+        const docs = await api.get('/api/library');
+        setDocuments(docs);
       } catch (err) { console.error(err); }
       finally { setDocsLoading(false); }
     };
@@ -33,17 +29,8 @@ const Compare = () => {
     setError(null);
     setResult(null);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API_URL}/compare`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ audit_id_a: docA, audit_id_b: docB })
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || 'Comparison failed');
-      }
-      setResult(await res.json());
+      const data = await api.post('/api/compare', { audit_id_a: docA, audit_id_b: docB });
+      setResult(data);
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }
   };
