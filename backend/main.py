@@ -1,5 +1,5 @@
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(override=True)
 
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,7 +10,16 @@ import uuid
 from app.services.ai.processor import PDFProcessor
 from app.services.ai.vector_store import VectorStoreService
 
+from app.core.database import init_db_indexes
+from app.core.logging import logger
+
 app = FastAPI(title="Auditor AI Backend")
+
+@app.on_event("startup")
+async def on_startup():
+    logger.info("Starting up Auditor AI Backend...")
+    await init_db_indexes()
+
 
 # 1. Expanded Origins — localhost for dev + production URL from env
 CORS_ORIGIN = os.getenv("CORS_ORIGIN", "")  # Set this on Render to your frontend URL

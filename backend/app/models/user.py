@@ -1,22 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from app.schemas.user import UserCreate, UserLogin, UserResponse, Token, GoogleToken, ProfileUpdate, PasswordUpdate
 
-class UserCreate(BaseModel):
-    name: str
-    email: EmailStr
-    password: str
-    role: str
+__all__ = ["UserCreate", "UserLogin", "UserResponse", "Token", "GoogleToken", "ProfileUpdate", "PasswordUpdate"]
 
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
-
-class UserResponse(BaseModel):
-    id: str
-    name: str
-    email: str
-    role: str
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-    user: UserResponse

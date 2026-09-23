@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
+from bson import ObjectId
 from ..models.library import LibraryDocument
-from .dashboard import get_current_user, get_db
+from app.api.deps import get_current_user, get_db
 
 router = APIRouter()
 
@@ -25,7 +26,7 @@ async def get_library_documents(current_user: dict = Depends(get_current_user), 
         else:
             doc_type = "UNKNOWN"
             
-        doc_size = "1.2 MB" # Mock size
+        doc_size = a.get("file_size", "1.2 MB")
         
         created_at = a.get("created_at")
         if created_at:
@@ -44,3 +45,21 @@ async def get_library_documents(current_user: dict = Depends(get_current_user), 
         )
         
     return formatted_docs
+
+@router.delete("/library/{doc_id}")
+async def delete_library_document(doc_id: str, current_user: dict = Depends(get_current_user), db=Depends(get_db)):
+    audits_collection = db["audits"]
+    user_id_str = str(current_user["_id"])
+    
+    # Check deletion by str _id or ObjectId
+    result = await audits_collection.delete_one({"_id": doc_id, "user_id": user_id_str})
+    if result.deleted_count == 0 and ObjectId.is_valid(doc_id):
+        result = await audits_collection.delete_one({"_id": ObjectId(doc_id), "user_id": user_id_str})
+        
+    if result.deleted_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found or access denied."
+        )
+        
+    return {"message": "Document deleted successfully."}

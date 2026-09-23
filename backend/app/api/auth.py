@@ -1,87 +1,51 @@
-from fastapi import APIRouter, HTTPException, status, Depends
-from motor.motor_asyncio import AsyncIOMotorClient
-from app.models.user import UserCreate, UserLogin, UserResponse, Token
-from app.core.security import get_password_hash, verify_password, create_access_token
-from app.core.config import settings
-from datetime import timedelta
-import uuid
+from fastapi import APIRouter, Depends
+from app.schemas.user import UserCreate, UserLogin, Token, GoogleToken, ProfileUpdate, PasswordUpdate, UserResponse
+from app.services.auth_service import AuthService
+from app.services.google_auth_service import GoogleAuthService
+from app.api.deps import get_db, get_current_user
 
 router = APIRouter()
 
-def get_db():
-    client = AsyncIOMotorClient(settings.MONGO_URI, serverSelectionTimeoutMS=5000)
-    db = client[settings.DATABASE_NAME]
-    return db
-
 @router.post("/signup", response_model=Token)
 async def signup(user: UserCreate, db = Depends(get_db)):
-    users_collection = db["users"]
-    
-    existing_user = await users_collection.find_one({"email": user.email})
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
-        )
-    
-    user_id = str(uuid.uuid4())
-    hashed_password = get_password_hash(user.password)
-    
-    new_user = {
-        "_id": user_id,
-        "name": user.name,
-        "email": user.email,
-        "password_hash": hashed_password,
-        "role": user.role
-    }
-    
-    await users_collection.insert_one(new_user)
-    
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.email}, expires_delta=access_token_expires
-    )
-    
-    return {
-        "access_token": access_token, 
-        "token_type": "bearer",
-        "user": {
-            "id": user_id,
-            "name": user.name,
-            "email": user.email,
-            "role": user.role
-        }
-    }
+    return await AuthService.signup(user, db)
 
 @router.post("/login", response_model=Token)
 async def login(user_credentials: UserLogin, db = Depends(get_db)):
-    users_collection = db["users"]
-    
-    user = await users_collection.find_one({"email": user_credentials.email})
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials"
-        )
-        
-    if not verify_password(user_credentials.password, user["password_hash"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials"
-        )
-        
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user["email"]}, expires_delta=access_token_expires
+    return await AuthService.login(user_credentials, db)
+
+@router.post("/google", response_model=Token)
+async def google_login(payload: GoogleToken, db = Depends(get_db)):
+    """
+    Google Identity Services authentication endpoint.
+    Accepts a Google ID token credential, verifies it server-side,
+    then resolves or creates the application user and returns the
+    application's standard JWT session — identical to email/password login.
+    """
+    return await GoogleAuthService.google_login(payload.credential, db)
+
+@router.get("/me", response_model=UserResponse)
+async def get_me(current_user: dict = Depends(get_current_user)):
+    return UserResponse(
+        id=str(current_user["_id"]),
+        name=current_user["name"],
+        email=current_user["email"],
+        role=current_user.get("role", "Researcher"),
+        created_at=current_user.get("created_at")
     )
-    
-    return {
-        "access_token": access_token, 
-        "token_type": "bearer",
-        "user": {
-            "id": user["_id"],
-            "name": user["name"],
-            "email": user["email"],
-            "role": user["role"]
-        }
-    }
+
+@router.put("/profile", response_model=UserResponse)
+async def update_profile(
+    profile_data: ProfileUpdate,
+    current_user: dict = Depends(get_current_user),
+    db = Depends(get_db)
+):
+    return await AuthService.update_profile(current_user, profile_data, db)
+
+@router.put("/password")
+async def update_password(
+    password_data: PasswordUpdate,
+    current_user: dict = Depends(get_current_user),
+    db = Depends(get_db)
+):
+    return await AuthService.update_password(current_user, password_data, db)

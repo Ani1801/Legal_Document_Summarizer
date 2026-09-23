@@ -7,7 +7,7 @@ and returns difference summary, risk shift score, and clause-level analysis.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from app.api.dashboard import get_current_user, get_db
+from app.api.deps import get_current_user, get_db
 from app.models.compare import CompareRequest, CompareResponse, ClauseMatch
 from app.services.ai.query_service import QueryService
 from app.services.ai.compare_service import CompareService

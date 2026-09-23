@@ -8,7 +8,7 @@ sends uncached queries to Gemini, and returns a grounded answer.
 
 import time
 from fastapi import APIRouter, Depends, HTTPException, status
-from app.api.dashboard import get_current_user, get_db
+from app.api.deps import get_current_user, get_db
 from app.models.chat import ChatRequest, ChatResponse, SourceChunk
 from app.services.ai.query_service import QueryService
 from app.services.ai.chat_service import ChatService

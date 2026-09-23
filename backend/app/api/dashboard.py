@@ -1,50 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from motor.motor_asyncio import AsyncIOMotorClient
-import jwt
-from app.core.config import settings
 from typing import List, Dict, Any
+from app.api.deps import get_db, get_current_user
 
 router = APIRouter()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
-
-# ── Singleton MongoDB client (created once, reused across all requests) ──
-_mongo_client: AsyncIOMotorClient = None
-
-def get_mongo_client() -> AsyncIOMotorClient:
-    global _mongo_client
-    if _mongo_client is None:
-        _mongo_client = AsyncIOMotorClient(
-            settings.MONGO_URI,
-            serverSelectionTimeoutMS=5000,
-            maxPoolSize=10,
-            minPoolSize=1,
-        )
-    return _mongo_client
-
-def get_db():
-    client = get_mongo_client()
-    return client[settings.DATABASE_NAME]
-
-async def get_current_user(token: str = Depends(oauth2_scheme), db=Depends(get_db)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
-            raise credentials_exception
-    except jwt.PyJWTError:
-        raise credentials_exception
-    
-    user = await db["users"].find_one({"email": email})
-    if user is None:
-        raise credentials_exception
-    return user
 
 @router.get("/dashboard/stats")
 async def get_dashboard_stats(current_user: dict = Depends(get_current_user), db=Depends(get_db)):

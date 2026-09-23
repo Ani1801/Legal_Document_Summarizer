@@ -6,7 +6,7 @@ Generates and downloads a branded PDF or DOCX audit report.
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import StreamingResponse
-from app.api.dashboard import get_current_user, get_db
+from app.api.deps import get_current_user, get_db
 from app.services.export_service import ExportService
 
 router = APIRouter()
