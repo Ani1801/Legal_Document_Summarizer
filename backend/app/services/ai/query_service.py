@@ -7,12 +7,13 @@ from Pinecone for a specific audit_id.
 """
 
 from typing import List, Dict, Any
-from app.services.ai.vector_store import VectorStoreService
+from app.services.ai.vector_store import vector_store_service
 
 
 class QueryService:
     def __init__(self):
-        self.vector_store = VectorStoreService()
+        # Shared instance — the embedding model is loaded once per process.
+        self.vector_store = vector_store_service
 
     def retrieve_relevant_chunks(
         self,
@@ -49,6 +50,7 @@ class QueryService:
                 "text": doc.page_content,
                 "page_number": doc.metadata.get("page_number", 1),
                 "file_name": doc.metadata.get("file_name", "Unknown"),
+                "section": doc.metadata.get("section_label", ""),
             })
 
         return results

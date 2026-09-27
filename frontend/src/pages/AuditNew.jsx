@@ -37,6 +37,22 @@ const getClauseCategoryColor = (category) => {
   return map[category] || 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700';
 };
 
+/** The seven core clause categories the backend classifies into, plus "All". */
+const CLAUSE_FILTERS = [
+  'All', 'Termination', 'Payment', 'Liability',
+  'Indemnification', 'Confidentiality', 'Governing Law', 'IP Rights',
+];
+
+const MAX_UPLOAD_MB = 20;
+
+/** Consistent placeholder for a tab or grid the audit returned nothing for. */
+const EmptyState = ({ icon: Icon, message }) => (
+  <div className="flex flex-col items-center justify-center py-10 text-center gap-2">
+    <Icon size={26} className="text-slate-300 dark:text-slate-600" />
+    <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs">{message}</p>
+  </div>
+);
+
 const AuditNew = () => {
   const [stage, setStage] = useState('upload'); // 'upload' | 'loading' | 'analysis'
   const [isProcessing, setIsProcessing] = useState(false);
@@ -45,6 +61,7 @@ const AuditNew = () => {
   const [auditResult, setAuditResult] = useState(null);
   const [error, setError] = useState(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [progress, setProgress] = useState({ percent: 0, label: '' });
   const fileInputRef = useRef(null);
 
   const handleDragOver = (e) => {
@@ -67,24 +84,37 @@ const AuditNew = () => {
   const processFile = async (file) => {
     if (!file || isProcessing) return;
 
-    if (file.type !== 'application/pdf') {
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
       setError('Only PDF files are currently supported.');
+      return;
+    }
+
+    // Mirror the backend limit so oversized files fail instantly instead of
+    // after a long upload.
+    if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+      setError(`This file is ${(file.size / (1024 * 1024)).toFixed(1)} MB, which exceeds the ${MAX_UPLOAD_MB} MB limit.`);
       return;
     }
 
     setError(null);
     setStage('loading');
     setIsProcessing(true);
+    setProgress({ percent: 5, label: 'Uploading document...' });
 
     const formData = new FormData();
     formData.append('file', file);
 
     try {
-      const data = await api.post('/api/audits/upload', formData, { isFormData: true });
-      
-      // Enrich result with structured mock fallback data if fields are missing
-      const enrichedData = enrichAuditData(data);
-      setAuditResult(enrichedData);
+      // The upload returns 202 as soon as the file is stored; the analysis runs
+      // in the background and we poll for it.
+      const accepted = await api.post('/api/audits/upload', formData, { isFormData: true });
+
+      if (accepted.reused) {
+        setProgress({ percent: 100, label: 'Already analysed — loading result' });
+      }
+
+      const result = await pollUntilReady(accepted.id);
+      setAuditResult(result);
       setStage('analysis');
     } catch (err) {
       setError(err.message);
@@ -94,135 +124,32 @@ const AuditNew = () => {
     }
   };
 
-  /** Ensures all 6 features have rich UI structures rendered even if backend is WIP */
-  const enrichAuditData = (data) => {
-    if (!data) return null;
-    return {
-      ...data,
-      executive_summary: data.executive_summary || data.summary || "This Master Services Agreement governs technical consulting, software licensing, and operational deliverables. Key areas of focus include unilateral termination rights, 30-day payment schedules, capped indemnification, and binding arbitration in New York.",
-      key_takeaways: data.key_takeaways || [
-        "Unilateral termination for convenience requires 30 days written notice.",
-        "Payment terms are Net-30 with a 1.5% monthly late interest penalty.",
-        "Total liability is capped at 12 months of total fees paid under the Agreement.",
-        "Confidentiality obligations extend for 3 years post-termination."
-      ],
-      section_summaries: data.section_summaries || [
-        {
-          title: "1. Scope of Services & Deliverables",
-          page_number: 1,
-          section: "Sec 1.2",
-          text_snippet: "Provider agrees to furnish software architecture consulting and code audit deliverables as detailed in Statement of Work (SOW) attachments.",
-          key_points: ["Services governed by individual SOWs", "Acceptance period is 10 business days"]
-        },
-        {
-          title: "2. Payment Terms & Invoicing",
-          page_number: 2,
-          section: "Sec 3.1",
-          text_snippet: "Client shall remit payment within thirty (30) days from invoice date. Late balances incur 1.5% interest monthly.",
-          key_points: ["Net-30 payment terms", "1.5% monthly interest penalty for overdue amounts"]
-        },
-        {
-          title: "3. Termination & Cancellation",
-          page_number: 3,
-          section: "Sec 5.4",
-          text_snippet: "Either party may terminate for convenience upon thirty (30) days written notice to the non-terminating party.",
-          key_points: ["30-day notice requirement", "Immediate termination allowed for uncured material breach (14 days)"]
-        },
-        {
-          title: "4. Limitation of Liability & Indemnity",
-          page_number: 4,
-          section: "Sec 8.2",
-          text_snippet: "Neither party's aggregate liability under this agreement shall exceed total amounts paid in the 12 months preceding the claim.",
-          key_points: ["Liability capped at 12-month contract fees", "Consequential damages waiver included"]
-        }
-      ],
-      clauses: data.clauses || [
-        {
-          id: 'c1',
-          category: 'Termination',
-          title: 'Termination for Convenience',
-          page_number: 3,
-          section: 'Sec 5.4',
-          risk_level: 'Medium',
-          snippet: 'Either party may terminate this Agreement without cause at any time by delivering thirty (30) calendar days prior written notice.',
-          explanation: 'Standard 30-day termination clause. Ensures flexibility but requires planning for transition.'
-        },
-        {
-          id: 'c2',
-          category: 'Payment',
-          title: 'Payment Schedules & Interest Penalty',
-          page_number: 2,
-          section: 'Sec 3.1',
-          risk_level: 'Low',
-          snippet: 'Invoices are payable within 30 days of receipt. Past due accounts incur interest at 1.5% per month or maximum legal rate.',
-          explanation: 'Standard Net-30 commercial payment structure with predictable late payment penalties.'
-        },
-        {
-          id: 'c3',
-          category: 'Liability',
-          title: 'Limitation of Liability Cap',
-          page_number: 4,
-          section: 'Sec 8.2',
-          risk_level: 'High',
-          snippet: 'Liability is capped at total fees paid in the prior 12 months. Excluding IP infringement and breach of confidentiality obligations.',
-          explanation: 'Caps general damage payouts but leaves IP and data breaches uncapped.'
-        },
-        {
-          id: 'c4',
-          category: 'Indemnification',
-          title: 'Mutual Intellectual Property Indemnity',
-          page_number: 4,
-          section: 'Sec 9.1',
-          risk_level: 'Medium',
-          snippet: 'Provider shall defend and indemnify Client against third-party claims alleging that deliverables infringe any patent or copyright.',
-          explanation: 'Standard IP defense clause protecting the client against third-party copyright claims.'
-        },
-        {
-          id: 'c5',
-          category: 'Confidentiality',
-          title: 'Non-Disclosure Duration & Scope',
-          page_number: 2,
-          section: 'Sec 4.3',
-          risk_level: 'Low',
-          snippet: 'Confidential Information shall remain protected for three (3) years following termination or expiration of this Agreement.',
-          explanation: '3-year post-termination survival clause for trade secrets and proprietary data.'
-        },
-        {
-          id: 'c6',
-          category: 'Governing Law',
-          title: 'Jurisdiction & Mandatory Arbitration',
-          page_number: 5,
-          section: 'Sec 12.1',
-          risk_level: 'Low',
-          snippet: 'This Agreement shall be governed by the laws of New York State. Disputes shall be resolved by AAA binding arbitration.',
-          explanation: 'Standard New York jurisdiction with AAA arbitration requirement.'
-        }
-      ],
-      entities: data.entities || {
-        parties: [
-          { name: "Acme Enterprise Solutions Inc.", role: "Provider / Service Provider", address: "100 Innovation Way, New York, NY 10001", signatory: "John Doe (CEO)" },
-          { name: "Global Logistics Corp.", role: "Client / Customer", address: "500 Commerce Blvd, Chicago, IL 60601", signatory: "Jane Smith (VP Ops)" }
-        ],
-        dates: [
-          { label: "Effective Date", value: "October 1, 2026", page_number: 1, section: "Preamble", note: "Contract commencement date" },
-          { label: "Expiration Date", value: "September 30, 2028", page_number: 1, section: "Sec 2.1", note: "24-month initial term" },
-          { label: "Notice Period", value: "30 Days Written Notice", page_number: 3, section: "Sec 5.4", note: "For convenience termination" },
-          { label: "Auto-Renewal", value: "Annual (12 Months)", page_number: 1, section: "Sec 2.2", note: "Requires 60-day opt-out notice" }
-        ],
-        financials: [
-          { label: "Total Estimated Value", amount: "$240,000 USD", page_number: 2, section: "Sec 3.1", detail: "Billed monthly at $10,000/mo" },
-          { label: "Late Interest Penalty", amount: "1.5% Monthly", page_number: 2, section: "Sec 3.3", detail: "Applies to balances unpaid after 30 days" },
-          { label: "Liability Cap", amount: "12 Months Fees ($120,000 max)", page_number: 4, section: "Sec 8.2", detail: "Calculated based on preceding 12 months" }
-        ],
-        jurisdiction: {
-          governing_law: "State of New York, USA",
-          venue: "New York County Courts",
-          dispute_resolution: "Binding Arbitration (AAA Rules)",
-          page_number: 5,
-          section: "Sec 12.1"
-        }
+  /**
+   * Poll the status endpoint until processing finishes, then fetch the analysis.
+   *
+   * Summarising a long contract can take minutes, so there is a generous ceiling
+   * on attempts; the interval stays short enough that the progress bar moves.
+   */
+  const pollUntilReady = async (auditId) => {
+    const intervalMs = 1500;
+    const maxAttempts = 400; // ~10 minutes
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const status = await api.get(`/api/audits/${auditId}/status`);
+      setProgress({
+        percent: status.progress ?? 0,
+        label: status.progress_label || 'Processing...',
+      });
+
+      if (status.is_complete) {
+        return api.get(`/api/audits/${auditId}`);
       }
-    };
+      if (status.is_failed) {
+        throw new Error(status.error || 'Processing failed for this document.');
+      }
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+    throw new Error('Processing is taking longer than expected. Check the Library shortly.');
   };
 
   const slideVariants = {
@@ -301,9 +228,27 @@ const AuditNew = () => {
             transition={{ duration: 0.3 }}
             className="flex-1 flex flex-col items-center justify-center max-w-4xl mx-auto w-full pt-8"
           >
-             <Loader2 size={48} className="text-primary-blue dark:text-blue-400 animate-spin mb-4" />
-             <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Auditing Legal Contract...</h2>
-             <p className="text-slate-500 dark:text-slate-400 text-center max-w-md">Extracting text, categorizing clauses, parsing key entities, and mapping citation sources...</p>
+             <Loader2 size={44} className="text-primary-blue dark:text-blue-400 animate-spin mb-4" />
+             <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Analyzing Legal Contract</h2>
+             <p className="text-slate-500 dark:text-slate-400 text-center max-w-md mb-6">
+               {progress.label || 'Extracting text, detecting sections, and summarizing...'}
+             </p>
+
+             {/* Staged progress, driven by the backend pipeline */}
+             <div className="w-full max-w-md">
+               <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                 <motion.div
+                   className="h-full bg-primary-blue rounded-full"
+                   initial={{ width: 0 }}
+                   animate={{ width: `${Math.max(progress.percent, 3)}%` }}
+                   transition={{ duration: 0.4, ease: 'easeOut' }}
+                 />
+               </div>
+               <div className="flex justify-between mt-2 text-[11px] font-semibold text-slate-400 dark:text-slate-500">
+                 <span>{progress.percent}%</span>
+                 <span>Large contracts may take a few minutes</span>
+               </div>
+             </div>
           </motion.div>
         ) : (
           <motion.div
@@ -321,6 +266,11 @@ const AuditNew = () => {
                 <div className="flex items-center gap-2 truncate pr-2">
                   <FileText size={18} className="text-primary-blue dark:text-blue-400 shrink-0" />
                   <span className="font-semibold text-sm text-slate-800 dark:text-slate-200 truncate">{auditResult?.file_name}</span>
+                  {auditResult?.contract_type && (
+                    <span className="hidden lg:inline-flex shrink-0 items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                      <Tag size={10} />{auditResult.contract_type}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button
@@ -424,6 +374,15 @@ const AuditNew = () => {
                 {/* ── 1. SUMMARIZATION TAB ──────────────────────── */}
                 {activeTab === 'summary' && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                    {/* Degraded summarisation must be visible, not silent */}
+                    {auditResult?.degraded && (
+                      <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20">
+                        <AlertTriangle size={15} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                        <p className="text-[11px] text-amber-800 dark:text-amber-200 leading-relaxed font-medium">
+                          {auditResult.degraded_reason || 'The summarisation model was unavailable; summaries below are extracted directly from the document text.'}
+                        </p>
+                      </div>
+                    )}
                     {/* Executive Summary Card */}
                     <div className="bg-gradient-to-br from-blue-50/50 to-indigo-50/30 dark:from-slate-800/60 dark:to-slate-800/30 border border-blue-100 dark:border-slate-800 rounded-xl p-5 shadow-xs">
                       <div className="flex items-center justify-between mb-3">
@@ -469,7 +428,7 @@ const AuditNew = () => {
                     )}
 
                     {/* Key Takeaways */}
-                    {auditResult?.key_takeaways && (
+                    {auditResult?.key_takeaways?.length > 0 && (
                       <div>
                         <h4 className="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Key Takeaways</h4>
                         <div className="space-y-2">
@@ -483,8 +442,23 @@ const AuditNew = () => {
                       </div>
                     )}
 
+                    {/* Engine provenance — which model produced this summary */}
+                    {(auditResult?.summary_provider || auditResult?.model_name) && (
+                      <div className="text-[10px] text-slate-400 dark:text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3 flex flex-wrap gap-x-3 gap-y-1">
+                        <span>Engine: <span className="font-semibold">{auditResult.summary_provider || 'local'}</span></span>
+                        {auditResult.model_name && <span>Model: {auditResult.model_name}</span>}
+                        {auditResult.page_count ? <span>{auditResult.page_count} pages</span> : null}
+                        {auditResult.chunk_count ? <span>{auditResult.chunk_count} chunks</span> : null}
+                        {auditResult.token_count ? <span>{auditResult.token_count} tokens</span> : null}
+                        {auditResult.processing_time ? <span>{auditResult.processing_time}s</span> : null}
+                        {auditResult.structure_detected === false && (
+                          <span className="text-amber-500">no section structure detected — page-based segmentation</span>
+                        )}
+                      </div>
+                    )}
+
                     {/* Section-by-Section Breakdown */}
-                    {auditResult?.section_summaries && (
+                    {auditResult?.section_summaries?.length > 0 && (
                       <div>
                         <h4 className="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Section Breakdown</h4>
                         <div className="space-y-3">
@@ -497,7 +471,7 @@ const AuditNew = () => {
                                 <SourceCitation citation={{ page_number: sec.page_number, section: sec.section, text: sec.text_snippet }} />
                               </div>
                               <ul className="space-y-1.5 pl-2">
-                                {sec.key_points.map((pt, pIdx) => (
+                                {(sec.key_points || []).map((pt, pIdx) => (
                                   <li key={pIdx} className="text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
                                     <span className="w-1.5 h-1.5 bg-blue-500 rounded-full shrink-0"></span>
                                     <span>{pt}</span>
@@ -517,7 +491,7 @@ const AuditNew = () => {
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
                     {/* Category Filter Chips */}
                     <div className="flex flex-wrap gap-1.5 border-b border-slate-100 dark:border-slate-800 pb-3">
-                      {['All', 'Termination', 'Payment', 'Liability', 'Indemnification', 'Confidentiality', 'Governing Law'].map(cat => (
+                      {CLAUSE_FILTERS.map(cat => (
                         <button
                           key={cat}
                           onClick={() => setClauseFilter(cat)}
@@ -562,16 +536,31 @@ const AuditNew = () => {
                             </div>
 
                             {/* Plain English Explanation */}
-                            <div className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-400 bg-blue-50/40 dark:bg-blue-500/5 p-2.5 rounded-lg border border-blue-100/60 dark:border-blue-500/10">
-                              <Info size={14} className="text-blue-500 shrink-0 mt-0.5" />
-                              <span className="leading-normal font-medium">{clause.explanation}</span>
-                            </div>
+                            {clause.explanation && (
+                              <div className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-400 bg-blue-50/40 dark:bg-blue-500/5 p-2.5 rounded-lg border border-blue-100/60 dark:border-blue-500/10">
+                                <Info size={14} className="text-blue-500 shrink-0 mt-0.5" />
+                                <span className="leading-normal font-medium">{clause.explanation}</span>
+                              </div>
+                            )}
+
+                            {/* Negotiation Recommendation */}
+                            {clause.recommendation && (
+                              <div className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-400 bg-amber-50/50 dark:bg-amber-500/5 p-2.5 rounded-lg border border-amber-100/70 dark:border-amber-500/10">
+                                <Lightbulb size={14} className="text-amber-500 shrink-0 mt-0.5" />
+                                <span className="leading-normal font-medium">{clause.recommendation}</span>
+                              </div>
+                            )}
                           </div>
                         ))
                       ) : (
-                        <div className="text-center py-8 text-slate-400 dark:text-slate-500 text-xs">
-                          No clauses matched the selected category.
-                        </div>
+                        <EmptyState
+                          icon={Layers}
+                          message={
+                            auditResult?.clauses?.length
+                              ? 'No clauses matched the selected category.'
+                              : 'No classifiable clauses were detected in this document.'
+                          }
+                        />
                       )}
                     </div>
                   </motion.div>
@@ -585,8 +574,9 @@ const AuditNew = () => {
                       <h4 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
                         <Building2 size={16} className="text-blue-500" /> Parties & Organizations
                       </h4>
+                      {auditResult?.entities?.parties?.length ? (
                       <div className="grid grid-cols-1 gap-3">
-                        {auditResult?.entities?.parties?.map((party, pIdx) => (
+                        {auditResult.entities.parties.map((party, pIdx) => (
                           <div key={pIdx} className="bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-lg border border-slate-200/70 dark:border-slate-800">
                             <div className="flex justify-between items-start mb-1">
                               <span className="font-extrabold text-xs text-slate-900 dark:text-white">{party.name}</span>
@@ -599,6 +589,9 @@ const AuditNew = () => {
                           </div>
                         ))}
                       </div>
+                      ) : (
+                        <EmptyState icon={Building2} message="No contracting parties could be identified in this document." />
+                      )}
                     </div>
 
                     {/* Grid 2: Key Dates & Timeline */}
@@ -606,8 +599,9 @@ const AuditNew = () => {
                       <h4 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
                         <Calendar size={16} className="text-emerald-500" /> Key Dates & Milestones
                       </h4>
+                      {auditResult?.entities?.dates?.length ? (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {auditResult?.entities?.dates?.map((dt, dIdx) => (
+                        {auditResult.entities.dates.map((dt, dIdx) => (
                           <div key={dIdx} className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-200/70 dark:border-slate-800 space-y-1">
                             <div className="flex items-center justify-between">
                               <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">{dt.label}</span>
@@ -618,6 +612,9 @@ const AuditNew = () => {
                           </div>
                         ))}
                       </div>
+                      ) : (
+                        <EmptyState icon={Calendar} message="No key dates or timelines were stated in this document." />
+                      )}
                     </div>
 
                     {/* Grid 3: Financial & Monetary Values */}
@@ -625,8 +622,9 @@ const AuditNew = () => {
                       <h4 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
                         <DollarSign size={16} className="text-amber-500" /> Financial & Monetary Values
                       </h4>
+                      {auditResult?.entities?.financials?.length ? (
                       <div className="space-y-3">
-                        {auditResult?.entities?.financials?.map((fin, fIdx) => (
+                        {auditResult.entities.financials.map((fin, fIdx) => (
                           <div key={fIdx} className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-200/70 dark:border-slate-800 flex items-center justify-between">
                             <div>
                               <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase block">{fin.label}</span>
@@ -637,6 +635,9 @@ const AuditNew = () => {
                           </div>
                         ))}
                       </div>
+                      ) : (
+                        <EmptyState icon={DollarSign} message="No monetary values or financial terms were found in this document." />
+                      )}
                     </div>
 
                     {/* Grid 4: Governing Law & Jurisdiction */}
@@ -647,15 +648,15 @@ const AuditNew = () => {
                       <div className="bg-indigo-50/50 dark:bg-indigo-500/10 p-3.5 rounded-lg border border-indigo-100 dark:border-indigo-500/20 space-y-2 text-xs">
                         <div className="flex justify-between">
                           <span className="text-slate-500 dark:text-slate-400 font-medium">Governing Law:</span>
-                          <span className="font-bold text-slate-900 dark:text-white">{auditResult?.entities?.jurisdiction?.governing_law}</span>
+                          <span className="font-bold text-slate-900 dark:text-white">{auditResult?.entities?.jurisdiction?.governing_law || 'Not specified'}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-500 dark:text-slate-400 font-medium">Court Venue:</span>
-                          <span className="font-bold text-slate-900 dark:text-white">{auditResult?.entities?.jurisdiction?.venue}</span>
+                          <span className="font-bold text-slate-900 dark:text-white">{auditResult?.entities?.jurisdiction?.venue || 'Not specified'}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-500 dark:text-slate-400 font-medium">Dispute Resolution:</span>
-                          <span className="font-bold text-slate-900 dark:text-white">{auditResult?.entities?.jurisdiction?.dispute_resolution}</span>
+                          <span className="font-bold text-slate-900 dark:text-white">{auditResult?.entities?.jurisdiction?.dispute_resolution || 'Not specified'}</span>
                         </div>
                       </div>
                     </div>
@@ -673,8 +674,13 @@ const AuditNew = () => {
                             <div className="flex gap-2 items-center">
                               <ShieldAlert size={18} className="text-red-500 shrink-0" />
                               <h4 className="font-bold text-slate-800 dark:text-red-100 text-xs">{risk.title}</h4>
+                              {risk.severity && (
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold border shrink-0 ${getRiskBadgeStyle(risk.severity)}`}>
+                                  {risk.severity}
+                                </span>
+                              )}
                             </div>
-                            <SourceCitation citation={{ page_number: risk.page_number || 2, section: risk.section || "Risk Area", text: risk.snippet || risk.description }} />
+                            <SourceCitation citation={{ page_number: risk.page_number, section: risk.section || "Risk Area", text: risk.snippet || risk.description }} />
                           </div>
                           <p className="text-[12px] text-slate-600 dark:text-slate-400 leading-relaxed pl-6">
                             {risk.description}
@@ -682,7 +688,7 @@ const AuditNew = () => {
                         </div>
                       ))
                     ) : (
-                      <p className="text-xs text-slate-500 dark:text-slate-400">No critical risks identified in this document.</p>
+                      <EmptyState icon={ShieldAlert} message="No material risks were identified in this document." />
                     )}
                   </motion.div>
                 )}
@@ -701,7 +707,7 @@ const AuditNew = () => {
                         </div>
                       ))
                     ) : (
-                      <p className="text-xs text-slate-500 dark:text-slate-400">No specific remediation suggestions generated.</p>
+                      <EmptyState icon={Lightbulb} message="No remediation suggestions were generated for this document." />
                     )}
                   </motion.div>
                 )}

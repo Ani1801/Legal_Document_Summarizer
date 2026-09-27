@@ -10,13 +10,62 @@ An AI-powered legal-tech platform that analyzes PDFs for risks, generates struct
 - Secure signup/login with JWT tokens + bcrypt password hashing
 - Protected routes with persistent sessions (localStorage)
 
-### Phase 2 — Document Audit
+### Phase 2 — Document Processing & Summarization
 - Upload PDF documents for automated legal analysis
-- Text extraction via PyMuPDF, chunked into semantic segments
-- Vector embeddings stored in Pinecone (384-dim, `all-MiniLM-L6-v2`)
-- AI-powered audit reports via Google Gemini (Summary, Risks, Risk Score)
+- **One shared processing pipeline**: extraction, cleaning, structure detection and
+  chunking happen exactly once, and the resulting canonical document feeds
+  summarization, RAG, clause detection and entity extraction alike
+- Page-aware extraction (pdfplumber, PyMuPDF fallback) with page boundaries preserved
+  for citation; scanned PDFs are reported as needing OCR, never summarized as empty
+- **Token-aware, structure-aware chunking** — sections, then paragraphs, then
+  sentences, bounded by a configurable token budget rather than character counts
+- **Local-first summarization**: a Hugging Face LED model runs in-process, so
+  summarization needs no API key and has no quota. Gemini is an optional provider
+- Hierarchical map/reduce summarization: chunk → section → executive summary,
+  with depth that adapts to document length
+- Structured output (parties, dates, financial terms, obligations) produced by
+  deterministic extraction, so every value is a literal substring of the contract
+  with an exact page reference
+- Background processing with live status and progress; the upload returns immediately
+- Content-hash deduplication, scoped per user
+- Vector embeddings in Pinecone (384-dim, `all-MiniLM-L6-v2`) with a local fallback
+- Optional Gemini clause/risk analysis layered on top
 - Interactive dashboard with stat cards and recent audits
 - Document library with search and filtering
+
+#### Summarization architecture
+
+```
+PDF → validate → extract (page-aware) → clean → detect structure → token-aware chunks
+                                                                          │
+                                        ┌─────────────────┬───────────────┤
+                                        ▼                 ▼               ▼
+                                  SUMMARIZATION      RAG INDEX     CLAUSE / ENTITY
+                                  (local LED)        (Pinecone)      ANALYSIS
+                                        │                 │               │
+                                        └────────── MongoDB `audits` ─────┘
+```
+
+Summarization runs behind a provider interface:
+
+```
+SummarizationProvider
+    ├── LocalTransformerSummarizer   (default — no API key)
+    └── GeminiSummarizer             (optional)
+```
+
+Select with `SUMMARY_PROVIDER=local|gemini`. The model is configured centrally via
+`SUMMARIZATION_MODEL` and loaded once per process, never per chunk.
+
+> **Model note:** `SUMMARIZATION_MODEL` must be a checkpoint *fine-tuned for
+> summarization*. The default is `nsi319/legal-led-base-16384` (legal-domain LED,
+> 16k input tokens, ~600 MB). The plain `allenai/led-base-16384` is only
+> pretrained and will echo its input instead of summarizing — the provider detects
+> that and reports the result as degraded rather than passing it off as a summary.
+
+> **Deployment note:** each worker process that summarizes holds its own copy of
+> the model (~1 GB resident for LED-base in fp32). For more than two Uvicorn
+> workers, run summarization in a dedicated single-worker service.
 
 ### Phase 3 — RAG Chat
 - **Chat with Document**: Ask natural-language questions about any audited PDF
@@ -134,3 +183,17 @@ Open **http://localhost:5173** in your browser.
 ## 📄 License
 
 This project is for educational purposes.
+
+## 🧪 Tests
+
+Two suites cover the document pipeline. Both run with **no MongoDB, no Pinecone,
+no API key and no model download** — the database and the summarization model are
+replaced with in-memory stand-ins, while extraction, cleaning, structure detection,
+chunking, embedding, the routes and the response schema all run as real code.
+
+```bash
+cd backend
+PYTHONPATH=. ./venv/bin/python tests/test_audit_pipeline.py          # 92 checks
+PYTHONPATH=. ./venv/bin/python tests/test_summarization_pipeline.py  # 96 checks
+```
+

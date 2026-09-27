@@ -21,3 +21,6 @@ reportlab
 python-docx
 redis
 google-auth
+pdfplumber
+torch  # local summarisation runtime
+transformers  # local summarisation models (LED)
